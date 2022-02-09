@@ -235,12 +235,14 @@ class BilingualDataset(Dataset):
         return self.dataset_high.encode_word(a), self.dataset_high.encode_word(b), self.dataset_low.encode_word(c), self.dataset_low.encode_word(d)
 
 def dataset_factory(language="german", mode="train-high", word_encoding="none", dataset_pkl_folder=SIG2019_DATASET_PATH, dataset_folder=SIG2019_DATA_PATH, force_rebuild=False) -> Task1Dataset:
-    assert mode in SIG2019_HIGH_MODES + SIG2019_LOW_MODES
+    assert mode in SIG2019_HIGH_MODES or mode in SIG2019_LOW_MODES
     filepath = join(dataset_pkl_folder, f"{language}-{mode}-{word_encoding}.tch")
     if force_rebuild or not exists(filepath):
         if mode not in {"train-high", "train-low"}:
-            train_dataset = dataset_factory(language=language, mode="train", word_encoding=word_encoding, dataset_pkl_folder=dataset_pkl_folder, force_rebuild=force_rebuild, dataset_folder=dataset_folder)
-            dataset = Task1Dataset(language=language, mode=mode, word_encoding=word_encoding, loading=True, **train_dataset.state_dict(), dataset_folder=dataset_folder)
+            train_dataset = dataset_factory(language=language, mode="train-low", word_encoding=word_encoding, dataset_pkl_folder=dataset_pkl_folder, force_rebuild=force_rebuild, dataset_folder=dataset_folder)
+            state_dict = train_dataset.state_dict()
+            state_dict["mode"] = mode
+            dataset = Task1Dataset(loading=True, **state_dict, dataset_folder=dataset_folder)
             dataset.set_analogy_classes()
         else:
             dataset = Task1Dataset(language=language, mode=mode, word_encoding=word_encoding, dataset_folder=dataset_folder)

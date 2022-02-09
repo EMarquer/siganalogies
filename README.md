@@ -1,33 +1,97 @@
 # `siganalogies` for morphological analogies using Sigmorphon 2016 and 2019
 The `siganalogies` package is design to manipulate morphological analogies built upon Sigmorphon 2016 and Sigmorphon 2019 in PyTorch.
 
-To cite this dataset, use the following:
-```bib
-@misc{
-    To be completed in the very near future.
-}
-```
-
+- [Changelog](#changelog)
+- [How to cite](#how-to-cite)
+- [References](#references)
 - [Setup](#setup)
+  - [[OPTIONAL] Get pre-computed dataset files for analysis or faster loading](#optional-get-pre-computed-dataset-files-for-analysis-or-faster-loading)
 - [Basic usage](#basic-usage)
   - [Dataset object](#dataset-object)
   - [Factories](#factories)
     - [Generic factory](#generic-factory)
     - [Dataset-specific factories](#dataset-specific-factories)
   - [Data augmentation](#data-augmentation)
+    - [Augmented forms (i.e. permutations)](#augmented-forms-ie-permutations)
 - [Dataset description](#dataset-description)
-  - [Sigmorphon 2019](#sigmorphon-2019)
-  - [Sigmorphon 2016](#sigmorphon-2016)
 - [Publications using this dataset](#publications-using-this-dataset)
 - [[NOT RECOMMENDED] Minimal usage and dataset PyTorch pickle description](#not-recommended-minimal-usage-and-dataset-pytorch-pickle-description)
+
+## Changelog
+Comming soon:
+- bilingual datasets (analogies between two similar languages);
+- examples of usage;
+- spliting of the data folowing the procédure of the articles by Alsaidi *et al.*
+
+## How to cite
+To cite this dataset, use the following reference:
+- For this dataset:
+  ```bib
+  @misc{
+      To be completed in the very near future.
+  }
+  ```
+
+## References
+The references of the datasets on wich the present dataset bases itself are as follow:
+- For Sigmorphon 2016:
+  ```bib
+  @InProceedings{cotterell2016sigmorphon,
+    author    = {Cotterell, Ryan and Kirov, Christo and Sylak-Glassman, John and Yarowsky, David and Eisner, Jason and Hulden, Mans},
+    title     = {The {SIGMORPHON} 2016 Shared Task---Morphological Reinflection},
+    booktitle = {Proceedings of the 2016 Meeting of {SIGMORPHON}},
+    month     = {August},
+    year      = {2016},
+    address   = {Berlin, Germany},
+    publisher = {Association for Computational Linguistics}
+  }
+  ```
+- For the Japanese data added to Sigmorphon 2016, from the Japanese Bigger Analogy Test Set:
+  ```bib
+  @inproceedings{jap-data:2018:karpinska,
+    author = {Marzena Karpinska and Bofang Li and Anna Rogers and Aleksandr Drozd},
+    title = {Subcharacter Information in Japanese embeddings: when is it worth it?},
+    year = {2018},
+    booktitle = {Workshop on the Relevance of Linguistic Structure in Neural Architectures for NLP},
+    address = {Melbourne, Australia},
+    pages = {28-37},
+    publisher = {ACL}
+  }
+  ```
+- For Sigmorphon 2019:
+  ```bib
+  @inproceedings{mccarthy-etal-2019-sigmorphon,
+    title = "The {SIGMORPHON} 2019 Shared Task: Morphological Analysis in Context and Cross-Lingual Transfer for Inflection",
+    author = "McCarthy, Arya D.  and
+      Vylomova, Ekaterina  and
+      Wu, Shijie  and
+      Malaviya, Chaitanya  and
+      Wolf-Sonkin, Lawrence  and
+      Nicolai, Garrett  and
+      Kirov, Christo  and
+      Silfverberg, Miikka  and
+      Mielke, Sabrina J.  and
+      Heinz, Jeffrey  and
+      Cotterell, Ryan  and
+      Hulden, Mans",
+    booktitle = "Proceedings of the 16th Workshop on Computational Research in Phonetics, Phonology, and Morphology",
+    month = aug,
+    year = "2019",
+    address = "Florence, Italy",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/W19-4226",
+    doi = "10.18653/v1/W19-4226",
+    pages = "229--244",
+  }
+  ```
 
 ## Setup
 The recommended file structure is as follows:
 ```
 my_project/
 ├── siganalogies/ (this package)
-│   ├── 2016_precomuted
-│   ├── 2019_precomuted
+│   ├── 2016_precomputed
+│   ├── 2019_precomputed
 │   └── ...
 ├── sigmorphon2016/
 │   ├── data
@@ -42,16 +106,26 @@ To use, either copy all the files in a folder named `siganalogies` or clone this
 
 You will also need to clone Sigmorphon 2016 and Sigmorphon 2019 into corresponding folders.
 
-This can be done using the following commands.
+This can be done using the following commands, to be run from your project directory.
 ```bash
 git clone git@github.com:EMarquer/siganalogies
 git clone git@github.com:ryancotterell/sigmorphon2016 sigmorphon2016
 git clone git@github.com:sigmorphon/2019.git sigmorphon2019
+mv siganalogies/japanese-task1-train sigmorphon2016/japanese-task1-train
 ```
 
-If you are in a repository, use `git submodule clone` instead of `git clone`.
+If you are in a repository, we recommend that you use `git submodule clone` instead of `git clone`.
+
+### [OPTIONAL] Get pre-computed dataset files for analysis or faster loading
+
+WILL BE DONE SOON
 
 ## Basic usage
+To manipulate the analogies, you will first need to load a [dataset object](#dataset-object) using the [dataset factories](#factories).
+You will then be able to use the dataset as any other `torch.utils.data.Dataset`, each element being a quadruple.
+
+The dataset object contains analogies of the form $A:B::C:D$ and $A:B::A:B$, but not the corresponding [augmented forms (i.e. permutations)](#augmented-forms-ie-permutations). We recommend to apply [data augmentation](#data-augmentation) to add said [augmented forms](#augmented-forms-ie-permutations).
+
 ### Dataset object
 Dataset objects are subclasses of `torch.utils.data.Dataset` and should be created using [factories](#factories).
 
@@ -134,12 +208,28 @@ dataset = dataset_factory(
 ```
 
 ### Data augmentation
+To be completed.
 
+Further explanations can be found in the article **To be completed**
 
+#### Augmented forms (i.e. permutations)
+From $A:B::C:D$ we can have the following equivalent permutations (or forms):
+- $A:B::C:D$ (the base form)
+- $A:C::B:D$
+- $B:A::D:C$
+- $B:D::A:C$
+- $C:D::A:B$
+- $C:A::D:B$
+- $D:C::B:A$
+- $D:B::C:A$
+
+We can also compute forms which should not be valid analogies, by permuting each analogical form $A:B::C:D$ above to obtain:
+- $A:A::C:D$
+- $B:A::C:D$
+- $C:B::A:D$
 
 ## Dataset description
-### Sigmorphon 2019
-### Sigmorphon 2016
+See [`dataset_description.pdf`](dataset_description.pdf).
 
 ## Publications using this dataset
 To be completed.

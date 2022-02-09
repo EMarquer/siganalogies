@@ -276,8 +276,10 @@ def dataset_factory(language="german", mode="train", word_encoding="none", datas
     filepath = join(dataset_pkl_folder, f"{language}-{mode}-{word_encoding}.tch")
     if force_rebuild or not exists(filepath):
         if mode != "train":
-            train_dataset = dataset_factory(language=language, mode="train", word_encoding=word_encoding, dataset_pkl_folder=dataset_pkl_folder, force_rebuild=force_rebuild)
-            dataset = Task1Dataset(language=language, mode=mode, word_encoding=word_encoding, loading=True, dataset_folder=dataset_folder, **train_dataset.state_dict())
+            train_dataset = dataset_factory(language=language, mode="train", word_encoding=word_encoding, dataset_pkl_folder=dataset_pkl_folder, dataset_folder=dataset_folder, force_rebuild=force_rebuild)
+            state_dict = train_dataset.state_dict()
+            state_dict["mode"] = mode
+            dataset = Task1Dataset(loading=True, dataset_folder=dataset_folder, **state_dict)
             dataset.set_analogy_classes()
         else:
             dataset = Task1Dataset(language=language, mode=mode, word_encoding=word_encoding, dataset_folder=dataset_folder)
