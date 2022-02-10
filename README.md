@@ -114,7 +114,7 @@ git clone git@github.com:sigmorphon/2019.git sigmorphon2019
 mv siganalogies/japanese-task1-train sigmorphon2016/japanese-task1-train
 ```
 
-If you are in a repository, we recommend that you use `git submodule clone` instead of `git clone`.
+If you are in a repository, we recommend that you use `git submodule add` instead of `git clone`.
 
 ### [OPTIONAL] Get pre-computed dataset files for analysis or faster loading
 
