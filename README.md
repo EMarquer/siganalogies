@@ -4,6 +4,7 @@ The `siganalogies` package is design to manipulate morphological analogies built
 - [Changelog](#changelog)
 - [How to cite](#how-to-cite)
 - [References](#references)
+- [Requirements](#requirements)
 - [Setup](#setup)
   - [[OPTIONAL] Get pre-computed dataset files for analysis or faster loading](#optional-get-pre-computed-dataset-files-for-analysis-or-faster-loading)
 - [Basic usage](#basic-usage)
@@ -84,6 +85,10 @@ The references of the datasets on wich the present dataset bases itself are as f
     pages = "229--244",
   }
   ```
+
+## Requirements
+Python >= 3.8 and PyTorch are required for `siganalogies`.
+The code was designed with PyTorch 1.10, but most versions equiped with the `torch.utils.data.Dataset` class should work.
 
 ## Setup
 The recommended file structure is as follows:
