@@ -2,18 +2,37 @@ import random
 """File containing generic data manipulation methods for analogy-oriented datasets."""
 
 def enrich(a, b, c, d):
-    """Apply the example generation process from 'Solving Word Analogies: a Machine Learning Perspective'."""
+    """Apply the example generation process from 'Solving Word Analogies: a Machine Learning Perspective'.
+    
+    For a given positive (i.e. valid) analogy A:B::C:D, this function yields the folowing permutaions corresponding to
+    positive analogies:
+        - A:B::C:D (base form);
+        - C:D::A:B (symetry);
+        - B:A::D:C (inside pair reversing);
+        - D:C::B:A (symetry + inside pair reversing);
+        - A:C::B:D (central permutation);
+        - C:A::D:B (central permutation + inside pair reversing = extreme permutation);
+        - B:D::A:C (central permutation + symetry);
+        - D:B::C:A (extreme permutation + symetry).
+    """
     yield a, b, c, d
     yield c, d, a, b
-    yield c, a, d, b
-    yield d, b, c, a
-    yield d, c, b, a
     yield b, a, d, c
-    yield b, d, a, c
+    yield d, c, b, a
     yield a, c, b, d
+    yield c, a, d, b
+    yield b, d, a, c
+    yield d, b, c, a
 
 def generate_negative(a, b, c, d):
-    """Apply the negative example generation process from 'Solving Word Analogies: a Machine Learning Perspective'."""
+    """Apply the negative example generation process from 'Solving Word Analogies: a Machine Learning Perspective'.
+
+    For a given positive (i.e. valid) analogy A:B::C:D, this function yields the folowing permutaions corresponding to
+    negative (i.e. invalid) analogies:
+        - B:A::C:D (one pair internally permuted, but not the other);
+        - C:B::A:D (analogy between the "diagonals" of the "parallelogram" ABCD);
+        - A:A::C:D (one pair is the identity, the other is not).
+    """
     yield b, a, c, d
     yield c, b, a, d
     yield a, a, c, d
@@ -21,7 +40,7 @@ def generate_negative(a, b, c, d):
 def random_sample_negative(a, b, c, d, filter_invalid=True, tensors=True, n=8):
     """Randomly sample invalid analogies from the available negative forms.
     
-    In this variant, central permutation is accepted.
+    In this variant, central permutation is considered a property of analogy.
     
     :param filter_invalid: If True, will exclude quadruples from negative forms if the an identical quadruple is already present in the positive forms.
     :param tensors: If True, consider that a, b, c, and d are tensors and use an appropriate equality check for quadruples.
@@ -33,7 +52,7 @@ def random_sample_negative(a, b, c, d, filter_invalid=True, tensors=True, n=8):
 def n_pos_n_neg(a, b, c, d, filter_invalid=True, filter_valid=False, tensors=True, n=8):
     """Generate positive examples (including the base form) and negative examples form a base analogical form.
     
-    In this variant, central permutation is accepted.
+    In this variant, central permutation is considered a property of analogy.
 
     Returns two lists, one of positive forms, the other of negative forms.
 
