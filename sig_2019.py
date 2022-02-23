@@ -1,12 +1,12 @@
 from os.path import exists, join
 from torch.utils.data import Dataset
-from torch import save, load, LongTensor, zeros
-from .config import SIG2019_HIGH_LOW_PAIRS, SIG2019_LANGUAGES, SIG2019_DATA_PATH, SIG2019_DATASET_PATH, SIG2019_HIGH, SIG2019_LOW, SIG2019_HIGH_MODES, SIG2019_LOW_MODES
+from torch import LongTensor, zeros
+from .config import SERIALIZATION, SIG2019_HIGH_LOW_PAIRS, SIG2019_LANGUAGES, SIG2019_PATH, SIG2019_DATASET_PATH, SIG2019_HIGH, SIG2019_LOW, SIG2019_HIGH_MODES, SIG2019_LOW_MODES
 from datetime import datetime
 import logging
-from .abstract_analogy_dataset import AbstractAnalogyDataset
+from .abstract_analogy_dataset import AbstractAnalogyDataset, StateDict, save_state_dict, load_state_dict
 
-def load_data(language="german", mode="train-high", dataset_folder=SIG2019_DATA_PATH):
+def load_data(language="german", mode="train-high", dataset_folder=SIG2019_PATH):
     """Load the data from the sigmorphon files in the form of a list of triples (lemma, target_features, target_word)."""
     filename = get_file_name(language, mode, dataset_folder=dataset_folder)
     def _split_n_reorder(line): # to get elements in the same order as in Sigmorphon 2016
@@ -15,7 +15,7 @@ def load_data(language="german", mode="train-high", dataset_folder=SIG2019_DATA_
     with open(filename, "r", encoding="utf-8") as f:
         return [_split_n_reorder(line) for line in f]
 
-def get_file_name(language="german", mode="train-high", dataset_folder=SIG2019_DATA_PATH):
+def get_file_name(language="german", mode="train-high", dataset_folder=SIG2019_PATH):
     """Checks that a language/mode combination is valid and return the complete filepath if it is.
     
     If it is not valid, raise an AssertError or a ValueError.
@@ -47,12 +47,12 @@ def get_file_name(language="german", mode="train-high", dataset_folder=SIG2019_D
 
 class Task1Dataset(AbstractAnalogyDataset):
     @staticmethod
-    def from_state_dict(state_dict, dataset_folder=SIG2019_DATA_PATH) -> AbstractAnalogyDataset:
+    def from_state_dict(state_dict: StateDict, dataset_folder=SIG2019_PATH) -> AbstractAnalogyDataset:
         """Create a dataset from saved data."""
-        dataset = Task1Dataset(loading=True, dataset_folder=dataset_folder, **state_dict)
+        dataset = Task1Dataset(building=False, dataset_folder=dataset_folder, state_dict=state_dict)
         return dataset
 
-    def state_dict(self):
+    def state_dict(self) -> StateDict:
         "Return a data dictionary, loadable for future use of the dataset."
         state_dict = {
             "timestamp": datetime.now(),
@@ -70,7 +70,7 @@ class Task1Dataset(AbstractAnalogyDataset):
             state_dict["char_voc_id"] = self.char_voc_id
         return state_dict
 
-    def __init__(self, language="german", mode="train-high", word_encoding="none", loading=False, dataset_folder=SIG2019_DATA_PATH, **kwargs):
+    def __init__(self, language="german", mode="train-high", word_encoding="none", building=True, state_dict: StateDict=None, dataset_folder=SIG2019_PATH, **kwargs):
         """A dataset class for manipultating files of task 1 of Sigmorphon2019."""
         super(Task1Dataset).__init__()
         assert language in SIG2019_LANGUAGES
@@ -79,18 +79,18 @@ class Task1Dataset(AbstractAnalogyDataset):
         self.raw_data = load_data(language = language, mode = mode, dataset_folder=dataset_folder)
         self.word_encoding = word_encoding
 
-        if not loading:
+        if building:
             self.set_analogy_classes()
             self.prepare_data()
-        else:
-            self.analogies = kwargs["analogies"]
-            self.word_voc = kwargs["word_voc"]
-            self.features = kwargs["features"]
-            self.features_with_analogies = kwargs["features_with_analogies"]
-            self.words_with_analogies = kwargs["words_with_analogies"]
+        elif state_dict is not None:
+            self.analogies = state_dict["analogies"]
+            self.word_voc = state_dict["word_voc"]
+            self.features = state_dict["features"]
+            self.features_with_analogies = state_dict["features_with_analogies"]
+            self.words_with_analogies = state_dict["words_with_analogies"]
             if self.word_encoding == "char":
-                self.char_voc = kwargs["char_voc"]
-                self.char_voc_id = kwargs["char_voc_id"]
+                self.char_voc = state_dict["char_voc"]
+                self.char_voc_id = state_dict["char_voc_id"]
 
     def prepare_data(self):
         """Generate embeddings for the 4 elements.
@@ -128,7 +128,7 @@ class Task1Dataset(AbstractAnalogyDataset):
             self.analogies.append((i, i)) # add the identity
             for j, (word_a_j, feature_b_j, word_b_j) in enumerate(self.raw_data[i+1:]):
                 if feature_b_i == feature_b_j:
-                    self.analogies.append((i, i+j))
+                    self.analogies.append((i, i+1+j))
                     self.features_with_analogies.add(feature_b_i)
                     self.words_with_analogies.add(word_a_i)
                     self.words_with_analogies.add(word_b_i)
@@ -166,12 +166,12 @@ class Task1Dataset(AbstractAnalogyDataset):
 
 class BilingualDataset(Dataset):
     @staticmethod
-    def from_state_dict(state_dict, dataset_folder=SIG2019_DATA_PATH):
+    def from_state_dict(state_dict: StateDict, dataset_folder=SIG2019_PATH):
         """Create a dataset from saved data."""
-        dataset = BilingualDataset(loading=True, dataset_folder=dataset_folder, **state_dict)
+        dataset = BilingualDataset(building=False, dataset_folder=dataset_folder, **state_dict)
         return dataset
 
-    def state_dict(self):
+    def state_dict(self) -> StateDict:
         "Return a data dictionary, loadable for future use of the dataset."
         state_dict = {
             "timestamp": datetime.now(),
@@ -184,7 +184,7 @@ class BilingualDataset(Dataset):
         }
         return state_dict
 
-    def __init__(self, language_high="german", language_low="middle-high-german", mode_low="train-high", word_encoding="none", loading=False, dataset_folder=SIG2019_DATA_PATH, **kwargs):
+    def __init__(self, language_high="german", language_low="middle-high-german", mode_low="train-high", word_encoding="none", building=True, state_dict: StateDict=None, dataset_folder=SIG2019_PATH, **kwargs):
         """
         :param mode_low: Dataset subset for the low-ressource language (dev, test, test-covered, train-low). 
             There is no option for the high ressource language as only train-high is available.
@@ -192,13 +192,13 @@ class BilingualDataset(Dataset):
         super(Task1Dataset).__init__()
         assert (language_high, language_low) in SIG2019_HIGH_LOW_PAIRS, f"({language_high}, {language_low}) is not a valid language pair for sigmorphon 2019 bilingual analogies."
 
-        if not loading:
+        if building:
             self.dataset_high = dataset_factory(language=language_high, mode="train-high", word_encoding=word_encoding, force_rebuild=kwargs.get("force_rebuild", False), dataset_folder=dataset_folder)
             self.dataset_low = dataset_factory(language=language_low, mode=mode_low, word_encoding=word_encoding, force_rebuild=kwargs.get("force_rebuild", False), dataset_folder=dataset_folder)
             self.set_analogy_classes()
-        else:
-            self.dataset_high = Task1Dataset(loading=True, **kwargs["state_dict_high"], dataset_folder=dataset_folder)
-            self.dataset_low = Task1Dataset(loading=True, **kwargs["state_dict_low"], dataset_folder=dataset_folder)
+        elif state_dict is not None:
+            self.dataset_high = Task1Dataset(building=False, **kwargs["state_dict_high"], dataset_folder=dataset_folder)
+            self.dataset_low = Task1Dataset(building=False, **kwargs["state_dict_low"], dataset_folder=dataset_folder)
             self.analogies = kwargs["analogies"]
             self.features_with_analogies = kwargs["features_with_analogies"]
             self.words_with_analogies_high = kwargs["words_with_analogies_high"]
@@ -226,34 +226,38 @@ class BilingualDataset(Dataset):
         c, feature_d, d = self.dataset_low.raw_data[cd_index]
         return self.dataset_high.encode_word(a), self.dataset_high.encode_word(b), self.dataset_low.encode_word(c), self.dataset_low.encode_word(d)
 
-def dataset_factory(language="german", mode="train-high", word_encoding="none", dataset_pkl_folder=SIG2019_DATASET_PATH, dataset_folder=SIG2019_DATA_PATH, force_rebuild=False) -> Task1Dataset:
+def dataset_factory(language="german", mode="train-high", word_encoding="none", dataset_pkl_folder=SIG2019_DATASET_PATH, dataset_folder=SIG2019_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Task1Dataset:
     assert mode in SIG2019_HIGH_MODES or mode in SIG2019_LOW_MODES
-    filepath = join(dataset_pkl_folder, f"{language}-{mode}-{word_encoding}.tch")
+    filepath = join(dataset_pkl_folder, f"{language}-{mode}-{word_encoding}.pkl")
     if force_rebuild or not exists(filepath):
         if mode not in {"train-high", "train-low"}:
             train_dataset = dataset_factory(language=language, mode="train-low", word_encoding=word_encoding, dataset_pkl_folder=dataset_pkl_folder, force_rebuild=force_rebuild, dataset_folder=dataset_folder)
             state_dict = train_dataset.state_dict()
             state_dict["mode"] = mode
-            dataset = Task1Dataset(loading=True, **state_dict, dataset_folder=dataset_folder)
+            dataset = Task1Dataset(building=False, state_dict=state_dict, dataset_folder=dataset_folder)
             dataset.set_analogy_classes()
         else:
             dataset = Task1Dataset(language=language, mode=mode, word_encoding=word_encoding, dataset_folder=dataset_folder)
-        state_dict = dataset.state_dict()
-        save(state_dict, filepath)
+        
+        if serialization:
+            state_dict = dataset.state_dict()
+            save_state_dict(state_dict, filepath)
     else:
-        state_dict = load(filepath)
-        dataset = Task1Dataset.from_state_dict(state_dict, dataset_folder=dataset_folder)
+        state_dict = load_state_dict(filepath)
+        dataset = Task1Dataset.from_state_dict(state_dict=state_dict, dataset_folder=dataset_folder)
     return dataset
 
-def bilingual_dataset_factory(language_high="german", language_low="middle-high-german", mode_low="train-low", word_encoding="none", dataset_pkl_folder=SIG2019_DATASET_PATH, dataset_folder=SIG2019_DATA_PATH, force_rebuild=False) -> BilingualDataset:
-    filepath = join(dataset_pkl_folder, f"{language_high}--{language_low}-{mode_low}-{word_encoding}.tch")
+def bilingual_dataset_factory(language_high="german", language_low="middle-high-german", mode_low="train-low", word_encoding="none", dataset_pkl_folder=SIG2019_DATASET_PATH, dataset_folder=SIG2019_PATH, force_rebuild=False, serialization=SERIALIZATION) -> BilingualDataset:
+    filepath = join(dataset_pkl_folder, f"{language_high}--{language_low}-{mode_low}-{word_encoding}.pkl")
     if force_rebuild or not exists(filepath):
         dataset = BilingualDataset(language_high=language_high, language_low=language_low, mode_low=mode_low, word_encoding=word_encoding, dataset_folder=dataset_folder)
-        state_dict = dataset.state_dict()
-        save(state_dict, filepath)
+        
+        if serialization:
+            state_dict = dataset.state_dict()
+            save_state_dict(state_dict, filepath)
     else:
-        state_dict = load(filepath)
-        dataset = BilingualDataset.from_state_dict(state_dict, dataset_folder=dataset_folder)
+        state_dict = load_state_dict(filepath)
+        dataset = BilingualDataset.from_state_dict(state_dict=state_dict, dataset_folder=dataset_folder)
     return dataset
 
 if __name__ == "__main__":

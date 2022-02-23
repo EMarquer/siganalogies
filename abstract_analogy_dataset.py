@@ -1,6 +1,17 @@
 from torch.utils.data import Dataset
 from abc import ABC, abstractstaticmethod, abstractmethod
 import collections as c
+import typing as t
+from pickle import dump, load
+
+StateDict = t.Dict[str, t.Any]
+def save_state_dict(state_dict: StateDict, filepath: str) -> None:
+    with open(filepath, "wb") as f:
+        dump(state_dict, f)
+def load_state_dict(filepath: str) -> StateDict:
+    with open(filepath, "rb") as f:
+        state_dict = load(f)
+    return state_dict
 
 class AbstractAnalogyDataset(Dataset, ABC):
     analogies: c.Sized
@@ -15,7 +26,7 @@ class AbstractAnalogyDataset(Dataset, ABC):
         "Return a data dictionary, loadable for future use of the dataset."
         raise NotImplementedError("Should be implemented in subclass.")
 
-    def __init__(self, **kwargs):
+    def __init__(self, state_dict=None, **kwargs):
         """A dataset class for manipultating files of task 1 of Sigmorphon2019."""
         super(AbstractAnalogyDataset).__init__()
         raise NotImplementedError("Should be implemented in subclass.")

@@ -1,11 +1,11 @@
 
-from torch import zeros, LongTensor, load, save
+from torch import zeros, LongTensor
 from torch.utils.data import Dataset
 import torch.nn as nn
-from .config import SIG2016_LANGUAGES, SIG2016_PATH, SIG2016_MODES, SIG2016_DATASET_PATH
+from .config import SERIALIZATION, SIG2016_LANGUAGES, SIG2016_PATH, SIG2016_MODES, SIG2016_DATASET_PATH
 from os.path import exists, join
 from datetime import datetime
-from .abstract_analogy_dataset import AbstractAnalogyDataset
+from .abstract_analogy_dataset import AbstractAnalogyDataset, StateDict, save_state_dict, load_state_dict
 import logging
 
 def load_data(language="german", mode="train", task=2, dataset_folder=SIG2016_PATH):
@@ -79,6 +79,7 @@ class Task2Dataset(Dataset):
             self.char_voc_id = {character: i for i, character in enumerate(self.char_voc)}
 
         elif self.word_encoding == "glove":
+            raise ValueError(f"GloVe word encoding not supported anymore. Coming back in a later version!")
             from embeddings.glove import GloVe
             self.glove = GloVe()
 
@@ -147,11 +148,11 @@ class Task2Dataset(Dataset):
 
 class Task1Dataset(AbstractAnalogyDataset):
     @staticmethod
-    def from_state_dict(state_dict, dataset_folder=SIG2016_PATH):
-        dataset = Task1Dataset(loading=True, dataset_folder=dataset_folder, **state_dict)
+    def from_state_dict(state_dict: StateDict, dataset_folder=SIG2016_PATH):
+        dataset = Task1Dataset(building=False, dataset_folder=dataset_folder, state_dict=state_dict)
         return dataset
 
-    def state_dict(self):
+    def state_dict(self) -> StateDict:
         "Return a data dictionary, loadable for future use of the dataset."
         state_dict = {
             "timestamp": datetime.now(),
@@ -170,25 +171,25 @@ class Task1Dataset(AbstractAnalogyDataset):
         return state_dict
 
     """A dataset class for manipultating files of task 1 of Sigmorphon2016."""
-    def __init__(self, language="german", mode="train", word_encoding="none", loading=False, dataset_folder=SIG2016_PATH, **kwargs):
+    def __init__(self, language="german", mode="train", word_encoding="none", building=True, state_dict: StateDict=None, dataset_folder=SIG2016_PATH, **kwargs):
         super(Task1Dataset).__init__()
         self.language = language
         self.mode = mode
         self.word_encoding = word_encoding
         self.raw_data = load_data(language=language, mode=mode, task=1, dataset_folder=dataset_folder)
 
-        if not loading:
+        if building:
             self.set_analogy_classes()
             self.prepare_data()
-        else:
-            self.analogies = kwargs["analogies"]
-            self.word_voc = kwargs["word_voc"]
-            self.features = kwargs["features"]
-            self.features_with_analogies = kwargs["features_with_analogies"]
-            self.words_with_analogies = kwargs["words_with_analogies"]
+        elif state_dict is not None:
+            self.analogies = state_dict["analogies"]
+            self.word_voc = state_dict["word_voc"]
+            self.features = state_dict["features"]
+            self.features_with_analogies = state_dict["features_with_analogies"]
+            self.words_with_analogies = state_dict["words_with_analogies"]
             if self.word_encoding == "char":
-                self.char_voc = kwargs["char_voc"]
-                self.char_voc_id = kwargs["char_voc_id"]
+                self.char_voc = state_dict["char_voc"]
+                self.char_voc_id = state_dict["char_voc_id"]
 
     def prepare_data(self):
         """Generate embeddings for the 4 elements.
@@ -209,6 +210,7 @@ class Task1Dataset(AbstractAnalogyDataset):
             self.char_voc_id = {character: i for i, character in enumerate(self.char_voc)}
 
         elif self.word_encoding == "glove":
+            raise ValueError(f"GloVe word encoding not supported anymore. Coming back in a later version!")
             from embeddings.glove import GloVe
             self.glove = GloVe()
 
@@ -231,7 +233,7 @@ class Task1Dataset(AbstractAnalogyDataset):
             self.analogies.append((i, i)) # add the identity
             for j, (word_a_j, feature_b_j, word_b_j) in enumerate(self.raw_data[i+1:]):
                 if feature_b_i == feature_b_j:
-                    self.analogies.append((i, i+j))
+                    self.analogies.append((i, i+1+j))
                     self.features_with_analogies.add(feature_b_i)
                     self.words_with_analogies.add(word_a_i)
                     self.words_with_analogies.add(word_b_i)
@@ -267,22 +269,24 @@ class Task1Dataset(AbstractAnalogyDataset):
         c, feature_d, d = self.raw_data[cd_index]
         return self.encode(a, b, c, d)
 
-def dataset_factory(language="german", mode="train", word_encoding="none", dataset_pkl_folder=SIG2016_DATASET_PATH, dataset_folder=SIG2016_PATH, force_rebuild=False) -> Task1Dataset:
-    filepath = join(dataset_pkl_folder, f"{language}-{mode}-{word_encoding}.tch")
+def dataset_factory(language="german", mode="train", word_encoding="none", dataset_pkl_folder=SIG2016_DATASET_PATH, dataset_folder=SIG2016_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Task1Dataset:
+    filepath = join(dataset_pkl_folder, f"{language}-{mode}-{word_encoding}.pkl")
     if force_rebuild or not exists(filepath):
         if mode != "train":
             train_dataset = dataset_factory(language=language, mode="train", word_encoding=word_encoding, dataset_pkl_folder=dataset_pkl_folder, dataset_folder=dataset_folder, force_rebuild=force_rebuild)
             state_dict = train_dataset.state_dict()
             state_dict["mode"] = mode
-            dataset = Task1Dataset(loading=True, dataset_folder=dataset_folder, **state_dict)
+            dataset = Task1Dataset(building=False, dataset_folder=dataset_folder, state_dict=state_dict)
             dataset.set_analogy_classes()
         else:
             dataset = Task1Dataset(language=language, mode=mode, word_encoding=word_encoding, dataset_folder=dataset_folder)
-        state_dict = dataset.state_dict()
-        save(state_dict, filepath)
+        
+        if serialization:
+            state_dict = dataset.state_dict()
+            save_state_dict(state_dict, filepath)
     else:
-        state_dict = load(filepath)
-        dataset = Task1Dataset.from_state_dict(state_dict, dataset_folder=dataset_folder)
+        state_dict = load_state_dict(filepath)
+        dataset = Task1Dataset.from_state_dict(state_dict=state_dict, dataset_folder=dataset_folder)
     return dataset
 
 if __name__ == "__main__":
@@ -292,3 +296,13 @@ if __name__ == "__main__":
     print(len(Task2Dataset()))
     print(Task2Dataset()[2500])
     print(Task2Dataset().raw_data[2500])
+
+    print()
+    print(dataset.analogies[1])
+    print(dataset.raw_data[dataset.analogies[1][0]])
+    print(dataset.raw_data[dataset.analogies[1][1]])
+
+    print()
+    print(dataset.analogies[2:10])
+    print(dataset.raw_data[dataset.analogies[2][0]])
+    print(dataset.raw_data[dataset.analogies[2][1]])

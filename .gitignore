@@ -1,6 +1,7 @@
-*_precomputed
+precomputed
 
 *.egg-info
 __pycache__
 dist
 __builder__.py
+sig_2016_merged*

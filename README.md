@@ -14,9 +14,10 @@ The `siganalogies` package is design to manipulate morphological analogies built
     - [Dataset-specific factories](#dataset-specific-factories)
   - [Data augmentation](#data-augmentation)
     - [Augmented forms (i.e. permutations)](#augmented-forms-ie-permutations)
+    - [Augmented forms (i.e. permutations) with central permutation not accepted as a property of analogy](#augmented-forms-ie-permutations-with-central-permutation-not-accepted-as-a-property-of-analogy)
 - [Dataset description](#dataset-description)
 - [Publications using this dataset](#publications-using-this-dataset)
-- [[NOT RECOMMENDED] Minimal usage and dataset PyTorch pickle description](#not-recommended-minimal-usage-and-dataset-pytorch-pickle-description)
+- [[NOT RECOMMENDED] Minimal usage with `pickle` and dataset serialization files](#not-recommended-minimal-usage-with-pickle-and-dataset-serialization-files)
 
 ## Changelog
 Comming soon:
@@ -95,8 +96,10 @@ The recommended file structure is as follows:
 ```
 my_project/
 ├── siganalogies/ (this package)
-│   ├── 2016_precomputed
-│   ├── 2019_precomputed
+│   ├── precomputed/ (serialized datasets)
+│   │   ├── 2016
+│   │   └── 2019
+│   ├── __init__.py
 │   └── ...
 ├── sigmorphon2016/
 │   ├── data
@@ -160,6 +163,9 @@ Manually creating a dataset using its `__init__` call is not recommended, use th
 
 If you are unsure the data saved is correct, you can specify `force_rebuild=True` to the factory function.
 
+If you do not want to use serialized dataset (hence recompute the analogies each time) you can specify `serialize=False` to the factory function.
+Unless you also specify `force_rebuild=True`, the existing serialized datasets will still be used.
+
 #### Generic factory
 The generic factory is used to unify calls to dataset-specific factories.
 Typical usage is when Sigmorphon 2016 and Sigmorphon 2019 will be used interchangabely.
@@ -170,22 +176,25 @@ from siganalogies import dataset_factory
 
 dataset = dataset_factory(dataset="2016", **kwargs)
 ```
+
 #### Dataset-specific factories
 Specify `dataset_pkl_folder` if you do not use the recommended structure to store the precomputed dataset files.
 Defaults are: 
-- `siganalogies.config.SIG2016_DATASET_PATH="2016_precomputed"`
-- `siganalogies.config.SIG2019_DATASET_PATH="2019_precomputed"`
+- `siganalogies.config.SIG2016_DATASET_PATH="./precomputed/2016"`
+- `siganalogies.config.SIG2019_DATASET_PATH="./precomputed/2019"`
+To disable precomputed dataset files once, specify `serialization=False` in the factory. To disable dataset files globaly, change `SERIALIZATION=True` to `SERIALIZATION=False` in `siganalogies/config.py`
+
 Specify `dataset_folder` if you do not use the recommended structure to store the datasets. 
 Defaults are:
 - `siganalogies.config.SIG2016_PATH="../sigmorphon2016/data"`
-- `siganalogies.config.SIG2019_DATA_PATH="../sigmorphon2019/task1"`
+- `siganalogies.config.SIG2019_PATH="../sigmorphon2019/task1"`
 
 For all the datasets, `word_encoding` can be either `"char"` for character-based encoding, or either `None` or `"none"`, if no encoding is applied and the raw text data is returned.
 
 For **Sigmorphon 2016**, the available `language`s are listed in `siganalogies.config.SIG2016_LANGUAGES`. The available `mode`s are `train`, `dev`, and `test`, also listed in `siganalogies.config.SIG2016_MODES`.
 
 ```python
-from siganalogies import dataset_factory_2016, SIG2016_DATASET_PATH
+from siganalogies import dataset_factory_2016, SIG2016_DATASET_PATH, SIG2016_PATH, SERIALIZATION
 
 dataset = dataset_factory(
     language="german",
@@ -193,7 +202,8 @@ dataset = dataset_factory(
     word_encoding="none",
     dataset_pkl_folder=SIG2016_DATASET_PATH,
     dataset_folder=SIG2016_PATH,
-    force_rebuild=False)
+    force_rebuild=False,
+    serialization=SERIALIZATION)
 ```
 
 For **Sigmorphon 2019**, the available `language`s are split in two categories:
@@ -201,15 +211,16 @@ For **Sigmorphon 2019**, the available `language`s are split in two categories:
 - low ressource languages, listed in `siganalogies.config.SIG2019_LOW`, and the corresponding `mode`s are `train`, `dev`, and `test`, also listed in `siganalogies.config.SIG2019_LOW_MODES`.
 
 ```python
-from siganalogies import dataset_factory_2019, SIG2019_DATASET_PATH
+from siganalogies import dataset_factory_2019, SIG2019_DATASET_PATH, SIG2019_PATH, SERIALIZATION
 
 dataset = dataset_factory(
     language="german",
     mode="train-high",
     word_encoding="none",
     dataset_pkl_folder=SIG2019_DATASET_PATH,
-    dataset_folder=SIG2019_DATA_PATH,
-    force_rebuild=False)
+    dataset_folder=SIG2019_PATH,
+    force_rebuild=False,
+    serialization=SERIALIZATION)
 ```
 
 ### Data augmentation
@@ -233,23 +244,27 @@ We can also compute forms which should not be valid analogies, by permuting each
 - $B:A::C:D$
 - $C:B::A:D$
 
+
+#### Augmented forms (i.e. permutations) with central permutation not accepted as a property of analogy
+To be completed.
+
 ## Dataset description
 See [`dataset_description.pdf`](dataset_description.pdf).
 
 ## Publications using this dataset
 To be completed.
 
-## [NOT RECOMMENDED] Minimal usage and dataset PyTorch pickle description
+## [NOT RECOMMENDED] Minimal usage with `pickle` and dataset serialization files
 It is possible to acess the pre-comuted data directly, using the following:
 ```python
-from torch import load
+from pickle import load
 
-data = load("data/2019_precomputed/adyghe-train-high-none.tch")
+data = load(open("precomputed/2019/adyghe-train-high-none.pkl", "rb"))
 ```
 
 **The pickled data files do not contain the data itself**, even if they are usable without the actual data from Sigmorphon 2016 and Sigmorphon 2019.
 
-The pickled data files follow the following pattern: `<language>-<mode>-<word encoding>.tch`.
+The pickled data files follow the following pattern: `<language>-<mode>-<word encoding>.pkl`.
 
 `data` will be a dictionary with the following keys:
 - `timestamp`: the timestamp of the creation of the pickled data;
