@@ -4,12 +4,16 @@ from torch import save, load, LongTensor, zeros
 from .config import SIG2019_HIGH_LOW_PAIRS, SIG2019_LANGUAGES, SIG2019_DATA_PATH, SIG2019_DATASET_PATH, SIG2019_HIGH, SIG2019_LOW, SIG2019_HIGH_MODES, SIG2019_LOW_MODES
 from datetime import datetime
 import logging
+from .abstract_analogy_dataset import AbstractAnalogyDataset
 
 def load_data(language="german", mode="train-high", dataset_folder=SIG2019_DATA_PATH):
     """Load the data from the sigmorphon files in the form of a list of triples (lemma, target_features, target_word)."""
     filename = get_file_name(language, mode, dataset_folder=dataset_folder)
+    def _split_n_reorder(line): # to get elements in the same order as in Sigmorphon 2016
+        a, b, feature_b = line.strip().split('\t')
+        return a, feature_b, b
     with open(filename, "r", encoding="utf-8") as f:
-        return [line.strip().split('\t') for line in f]
+        return [_split_n_reorder(line) for line in f]
 
 def get_file_name(language="german", mode="train-high", dataset_folder=SIG2019_DATA_PATH):
     """Checks that a language/mode combination is valid and return the complete filepath if it is.
@@ -41,9 +45,9 @@ def get_file_name(language="german", mode="train-high", dataset_folder=SIG2019_D
     # concatenate the folder, the language-pair subfolder, and the filename
     return join(dataset_folder, folder, f"{language}-{mode}")
 
-class Task1Dataset(Dataset):
+class Task1Dataset(AbstractAnalogyDataset):
     @staticmethod
-    def from_state_dict(state_dict, dataset_folder=SIG2019_DATA_PATH):
+    def from_state_dict(state_dict, dataset_folder=SIG2019_DATA_PATH) -> AbstractAnalogyDataset:
         """Create a dataset from saved data."""
         dataset = Task1Dataset(loading=True, dataset_folder=dataset_folder, **state_dict)
         return dataset
@@ -88,8 +92,6 @@ class Task1Dataset(Dataset):
                 self.char_voc = kwargs["char_voc"]
                 self.char_voc_id = kwargs["char_voc_id"]
 
-        
-
     def prepare_data(self):
         """Generate embeddings for the 4 elements.
 
@@ -110,7 +112,7 @@ class Task1Dataset(Dataset):
             pass
 
         else:
-            print(f"Unsupported word encoding: {self.word_encoding}")
+            raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
 
     def set_analogy_classes(self):
         """Go through the data to extract the vocabulary, the available features, and build analogies."""
@@ -119,12 +121,12 @@ class Task1Dataset(Dataset):
         self.features = set()
         self.features_with_analogies = set()
         self.words_with_analogies = set()
-        for i, (word_a_i, word_b_i, feature_b_i) in enumerate(self.raw_data):
+        for i, (word_a_i, feature_b_i, word_b_i) in enumerate(self.raw_data):
             self.word_voc.add(word_a_i)
             self.word_voc.add(word_b_i)
             self.features.add(feature_b_i)
             self.analogies.append((i, i)) # add the identity
-            for j, (word_a_j, word_b_j, feature_b_j) in enumerate(self.raw_data[i+1:]):
+            for j, (word_a_j, feature_b_j, word_b_j) in enumerate(self.raw_data[i+1:]):
                 if feature_b_i == feature_b_j:
                     self.analogies.append((i, i+j))
                     self.features_with_analogies.add(feature_b_i)
@@ -143,10 +145,6 @@ class Task1Dataset(Dataset):
             return word
         else:
             raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
-    
-    def encode(self, a, b, c, d):
-        """Encode 4 words using the selected encoding process."""
-        return self.encode_word(a), self.encode_word(b), self.encode_word(c), self.encode_word(d)
 
     def decode_word(self, word):
         """Decode a single word using the selected encoding process."""
@@ -160,13 +158,10 @@ class Task1Dataset(Dataset):
         else:
             raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
 
-    def __len__(self):
-        return len(self.analogies)
-
     def __getitem__(self, index):
         ab_index, cd_index = self.analogies[index]
-        a, b, feature_b = self.raw_data[ab_index]
-        c, d, feature_d = self.raw_data[cd_index]
+        a, feature_b, b = self.raw_data[ab_index]
+        c, feature_d, d = self.raw_data[cd_index]
         return self.encode(a, b, c, d)
 
 class BilingualDataset(Dataset):
@@ -198,8 +193,8 @@ class BilingualDataset(Dataset):
         assert (language_high, language_low) in SIG2019_HIGH_LOW_PAIRS, f"({language_high}, {language_low}) is not a valid language pair for sigmorphon 2019 bilingual analogies."
 
         if not loading:
-            self.dataset_high = dataset_factory(language=language_high, mode="train-high", word_encoding=word_encoding, loading=False, force_rebuild=kwargs.get("force_rebuild", False), dataset_folder=dataset_folder)
-            self.dataset_low = dataset_factory(language=language_low, mode=mode_low, word_encoding=word_encoding, loading=False, force_rebuild=kwargs.get("force_rebuild", False), dataset_folder=dataset_folder)
+            self.dataset_high = dataset_factory(language=language_high, mode="train-high", word_encoding=word_encoding, force_rebuild=kwargs.get("force_rebuild", False), dataset_folder=dataset_folder)
+            self.dataset_low = dataset_factory(language=language_low, mode=mode_low, word_encoding=word_encoding, force_rebuild=kwargs.get("force_rebuild", False), dataset_folder=dataset_folder)
             self.set_analogy_classes()
         else:
             self.dataset_high = Task1Dataset(loading=True, **kwargs["state_dict_high"], dataset_folder=dataset_folder)
@@ -215,8 +210,8 @@ class BilingualDataset(Dataset):
         self.features_with_analogies = set()
         self.words_with_analogies_high = set()
         self.words_with_analogies_low = set()
-        for i, (word_a_i, word_b_i, feature_b_i) in enumerate(self.dataset_high.raw_data):
-            for j, (word_a_j, word_b_j, feature_b_j) in enumerate(self.dataset_low.raw_data):
+        for i, (word_a_i, feature_b_i, word_b_i) in enumerate(self.dataset_high.raw_data):
+            for j, (word_a_j, feature_b_j, word_b_j) in enumerate(self.dataset_low.raw_data):
                 if feature_b_i == feature_b_j:
                     self.analogies.append((i, j))
                     self.features_with_analogies.add(feature_b_i)
@@ -225,13 +220,10 @@ class BilingualDataset(Dataset):
                     self.words_with_analogies_low.add(word_a_j)
                     self.words_with_analogies_low.add(word_b_j)
 
-    def __len__(self):
-        return len(self.analogies)
-
     def __getitem__(self, index):
         ab_index, cd_index = self.analogies[index]
-        a, b, feature_b = self.dataset_high.raw_data[ab_index]
-        c, d, feature_d = self.dataset_low.raw_data[cd_index]
+        a, feature_b, b = self.dataset_high.raw_data[ab_index]
+        c, feature_d, d = self.dataset_low.raw_data[cd_index]
         return self.dataset_high.encode_word(a), self.dataset_high.encode_word(b), self.dataset_low.encode_word(c), self.dataset_low.encode_word(d)
 
 def dataset_factory(language="german", mode="train-high", word_encoding="none", dataset_pkl_folder=SIG2019_DATASET_PATH, dataset_folder=SIG2019_DATA_PATH, force_rebuild=False) -> Task1Dataset:
@@ -266,6 +258,7 @@ def bilingual_dataset_factory(language_high="german", language_low="middle-high-
 
 if __name__ == "__main__":
     from time import process_time
+    from .config import THIS_DIR
 
     def check_load_building_time():
         features = []
@@ -291,8 +284,8 @@ if __name__ == "__main__":
         # summary
         features = [{"word_encoding": "none", "language": lang, "mode": "train-high"} for lang in SIG2019_HIGH]
         features += [{"word_encoding": "none", "language": lang, "mode": "train-low"} for lang in SIG2019_LOW]
-        features += [{"word_encoding": "none", "language": lang, "mode": "dev"} for lang in SIG2019_LOW]
-        features += [{"word_encoding": "none", "language": lang, "mode": "test"} for lang in SIG2019_LOW]
+        #features += [{"word_encoding": "none", "language": lang, "mode": "dev"} for lang in SIG2019_LOW]
+        #features += [{"word_encoding": "none", "language": lang, "mode": "test"} for lang in SIG2019_LOW]
         import pandas
         records = []
         records_sns = []
@@ -320,7 +313,7 @@ if __name__ == "__main__":
         df = pandas.DataFrame.from_records(records)
         df["analogy coverage word ratio (identity excluded)"] = df["words with analogies (identity excluded)"] / df["words"]
         df["analogy coverage feature ratio (identity excluded)"] = df["features with analogies (identity excluded)"] / df["features"]
-        df.to_csv(join(SIG2019_DATASET_PATH, "none-summary.csv"))
+        df.to_csv(join(THIS_DIR, "none-summary.csv"))
         df_sns = pandas.DataFrame.from_records(records_sns)
     
         import seaborn as sns
@@ -328,11 +321,11 @@ if __name__ == "__main__":
         fig = sns.catplot(x="language", y="value", data=df_sns[
             df_sns["language"].apply(lambda l: l in SIG2019_HIGH) & df_sns["mode"].apply(lambda l: l in SIG2019_HIGH_MODES)
             ], row="element", kind="bar", sharex="row", sharey="none", aspect=10)
-        fig.savefig(join(SIG2019_DATASET_PATH, "none-summary-high.png"))
+        fig.savefig(join(THIS_DIR, "none-summary-high.png"))
         fig = sns.catplot(x="language", y="value", data=df_sns[
             df_sns["language"].apply(lambda l: l in SIG2019_LOW) & df_sns["mode"].apply(lambda l: l in SIG2019_LOW_MODES)
             ], row="element", col="mode", kind="bar", sharex="row", sharey="none", aspect=10)
-        fig.savefig(join(SIG2019_DATASET_PATH, "none-summary-low.png"))
+        fig.savefig(join(THIS_DIR, "none-summary-low.png"))
     
     def check_load_building_time_bilingual():
         features = []
@@ -389,7 +382,7 @@ if __name__ == "__main__":
         df = pandas.DataFrame.from_records(records)
         #df["analogy coverage word ratio (identity excluded)"] = df["words with analogies (identity excluded)"] / df["words"]
         df["analogy coverage feature ratio (identity excluded)"] = df["features with analogies (identity excluded)"] / df["features"]
-        df.to_csv(join(SIG2019_DATASET_PATH, "none-summary.csv"))
+        df.to_csv(join(THIS_DIR, "none-summary.csv"))
         df_sns = pandas.DataFrame.from_records(records_sns)
     
         import seaborn as sns
@@ -398,10 +391,10 @@ if __name__ == "__main__":
             row="element", kind="bar", sharex="row", sharey="row",
             hue="mode_low", aspect=20)
         #plt.show()
-        fig.savefig(join(SIG2019_DATASET_PATH, "none-summary-bilingual.png"))
+        fig.savefig(join(THIS_DIR, "none-summary-bilingual.png"))
         #fig = sns.catplot(x="language", y="value", data=df_sns[
         #    df_sns["language"].apply(lambda l: l in SIG2019_LOW) & df_sns["mode"].apply(lambda l: l in SIG2019_LOW_MODES)
         #    ], row="element", col="mode", kind="bar", sharex="row", sharey="none", aspect=10)
         #fig.savefig(join(SIG2019_DATASET_PATH, "none-summary-low.png"))
 
-    compare_languages_bilingual()
+    compare_languages()

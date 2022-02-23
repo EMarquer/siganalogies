@@ -5,6 +5,8 @@ import torch.nn as nn
 from .config import SIG2016_LANGUAGES, SIG2016_PATH, SIG2016_MODES, SIG2016_DATASET_PATH
 from os.path import exists, join
 from datetime import datetime
+from .abstract_analogy_dataset import AbstractAnalogyDataset
+import logging
 
 def load_data(language="german", mode="train", task=2, dataset_folder=SIG2016_PATH):
     '''Load the data from the sigmorphon files in the form of a list of triples (lemma, target_features, target_word).'''
@@ -19,7 +21,7 @@ def load_data(language="german", mode="train", task=2, dataset_folder=SIG2016_PA
 class Task2Dataset(Dataset):
     """A dataset class for manipultating files of task 2 of Sigmorphon2016.
     
-    Not used in the article."""
+    Not used, and not recommended for usage."""
     def __init__(self, language="german", mode="train", feature_encoding = "char", word_encoding="none", dataset_folder=SIG2016_PATH):
         super(Task2Dataset).__init__()
         self.language = language
@@ -143,7 +145,7 @@ class Task2Dataset(Dataset):
     def get_vocab(self):
         return set(w for w1w2 in ((w1, w2) for feature1,w1,feature2,w2 in self.raw_data) for w in w1w2)
 
-class Task1Dataset(Dataset):
+class Task1Dataset(AbstractAnalogyDataset):
     @staticmethod
     def from_state_dict(state_dict, dataset_folder=SIG2016_PATH):
         dataset = Task1Dataset(loading=True, dataset_folder=dataset_folder, **state_dict)
@@ -214,7 +216,7 @@ class Task1Dataset(Dataset):
             pass
 
         else:
-            print(f"Unsupported word encoding: {self.word_encoding}")
+            raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
 
     def set_analogy_classes(self):
         self.analogies = []
@@ -246,25 +248,18 @@ class Task1Dataset(Dataset):
             return word
         else:
             raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
-    
-    def encode(self, a, b, c, d):
-        """Encode 4 words using the selected encoding process."""
-        return self.encode_word(a), self.encode_word(b), self.encode_word(c), self.encode_word(d)
 
     def decode_word(self, word):
         """Decode a single word using the selected encoding process."""
         if self.word_encoding == "char":
             return "".join([self.char_voc[char.item()] for char in word])
-        elif self.word_encoding == "glove":
-            print("Word decoding not supported with GloVe.")
         elif self.word_encoding == "none" or self.word_encoding is None:
-            print("Word decoding not necessary when using 'none' encoding.")
+            logging.info("Word decoding not necessary when using 'none' encoding.")
             return word
+        elif self.word_encoding == "glove":
+            raise ValueError("Word decoding not supported with GloVe.")
         else:
-            print(f"Unsupported word encoding: {self.word_encoding}")
-
-    def __len__(self):
-        return len(self.analogies)
+            raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
 
     def __getitem__(self, index):
         ab_index, cd_index = self.analogies[index]
