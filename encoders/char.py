@@ -43,7 +43,7 @@ class CharEncoder(Encoder):
             else:
                 return self.id_to_char[index]
 
-        if tensor.dim > 1:
+        if tensor.dim() > 1:
             return [self.decode(part, unk_char=unk_char, pad_char=pad_char, bos_char=bos_char, eos_char=eos_char) for part in tensor]
         else:
             return "".join([id_to_char(char.int().item()) for char in tensor])
