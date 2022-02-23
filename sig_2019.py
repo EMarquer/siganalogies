@@ -1,10 +1,11 @@
 from os.path import exists, join
 from torch.utils.data import Dataset
-from torch import LongTensor, zeros
 from .config import SERIALIZATION, SIG2019_HIGH_LOW_PAIRS, SIG2019_LANGUAGES, SIG2019_PATH, SIG2019_DATASET_PATH, SIG2019_HIGH, SIG2019_LOW, SIG2019_HIGH_MODES, SIG2019_LOW_MODES
 from datetime import datetime
 import logging
 from .abstract_analogy_dataset import AbstractAnalogyDataset, StateDict, save_state_dict, load_state_dict
+import typing as t
+from .encoders import Encoder, encoder_as_string
 
 def load_data(language="german", mode="train-high", dataset_folder=SIG2019_PATH):
     """Load the data from the sigmorphon files in the form of a list of triples (lemma, target_features, target_word)."""
@@ -45,11 +46,12 @@ def get_file_name(language="german", mode="train-high", dataset_folder=SIG2019_P
     # concatenate the folder, the language-pair subfolder, and the filename
     return join(dataset_folder, folder, f"{language}-{mode}")
 
-class Task1Dataset(AbstractAnalogyDataset):
+class Sig2019Dataset(AbstractAnalogyDataset):
     @staticmethod
     def from_state_dict(state_dict: StateDict, dataset_folder=SIG2019_PATH) -> AbstractAnalogyDataset:
         """Create a dataset from saved data."""
-        dataset = Task1Dataset(building=False, dataset_folder=dataset_folder, state_dict=state_dict)
+        dataset = Sig2019Dataset(building=False, dataset_folder=dataset_folder, state_dict=state_dict,
+            word_encoder=state_dict["word_encoder"])
         return dataset
 
     def state_dict(self) -> StateDict:
@@ -58,61 +60,32 @@ class Task1Dataset(AbstractAnalogyDataset):
             "timestamp": datetime.now(),
             "language": self.language,
             "mode": self.mode,
-            "word_encoding": self.word_encoding,
+            "word_encoder": self.word_encoder,
             "analogies": self.analogies,
             "word_voc": self.word_voc,
             "features": self.features,
             "features_with_analogies": self.features_with_analogies,
             "words_with_analogies": self.words_with_analogies
         }
-        if self.word_encoding == "char":
-            state_dict["char_voc"] = self.char_voc
-            state_dict["char_voc_id"] = self.char_voc_id
         return state_dict
 
-    def __init__(self, language="german", mode="train-high", word_encoding="none", building=True, state_dict: StateDict=None, dataset_folder=SIG2019_PATH, **kwargs):
+    def __init__(self, language="german", mode="train-high", word_encoder: t.Union[t.Type, Encoder, str, None]=None, building=True, state_dict: StateDict=None, dataset_folder=SIG2019_PATH, **kwargs):
         """A dataset class for manipultating files of task 1 of Sigmorphon2019."""
-        super(Task1Dataset).__init__()
+        super().__init__(word_encoder=word_encoder)
         assert language in SIG2019_LANGUAGES
         self.language = language
         self.mode = mode
         self.raw_data = load_data(language = language, mode = mode, dataset_folder=dataset_folder)
-        self.word_encoding = word_encoding
 
         if building:
             self.set_analogy_classes()
-            self.prepare_data()
+            self.prepare_encoder()
         elif state_dict is not None:
             self.analogies = state_dict["analogies"]
             self.word_voc = state_dict["word_voc"]
             self.features = state_dict["features"]
             self.features_with_analogies = state_dict["features_with_analogies"]
             self.words_with_analogies = state_dict["words_with_analogies"]
-            if self.word_encoding == "char":
-                self.char_voc = state_dict["char_voc"]
-                self.char_voc_id = state_dict["char_voc_id"]
-
-    def prepare_data(self):
-        """Generate embeddings for the 4 elements.
-
-        There are 2 modes to encode the words:
-        - 'char': sequence of ids of characters, wrt. a dictioanry of values;
-        - 'none' or None: no encoding, particularly useful when coupled with BERT encodings.
-        """
-        if self.word_encoding == "char":
-            # generate character vocabulary
-            voc = set()
-            for word in self.word_voc:
-                voc.update(word)
-            self.char_voc = list(voc)
-            self.char_voc.sort()
-            self.char_voc_id = {character: i for i, character in enumerate(self.char_voc)}
-
-        elif self.word_encoding == "none" or self.word_encoding is None:
-            pass
-
-        else:
-            raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
 
     def set_analogy_classes(self):
         """Go through the data to extract the vocabulary, the available features, and build analogies."""
@@ -134,29 +107,6 @@ class Task1Dataset(AbstractAnalogyDataset):
                     self.words_with_analogies.add(word_b_i)
                     self.words_with_analogies.add(word_a_j)
                     self.words_with_analogies.add(word_b_j)
-
-    def encode_word(self, word):
-        """Encode a single word using the selected encoding process."""
-        if self.word_encoding == "char":
-            return LongTensor([self.char_voc_id[c] if c in self.char_voc_id.keys() else -1 for c in word])
-        elif self.word_encoding == "glove":
-            return self.glove.embeddings.get(word, zeros(300))
-        elif self.word_encoding == "none" or self.word_encoding is None:
-            return word
-        else:
-            raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
-
-    def decode_word(self, word):
-        """Decode a single word using the selected encoding process."""
-        if self.word_encoding == "char":
-            return "".join([self.char_voc[char.item()] for char in word])
-        elif self.word_encoding == "none" or self.word_encoding is None:
-            logging.info("Word decoding not necessary when using 'none' encoding.")
-            return word
-        elif self.word_encoding == "glove":
-            raise ValueError("Word decoding not supported with GloVe.")
-        else:
-            raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
 
     def __getitem__(self, index):
         ab_index, cd_index = self.analogies[index]
@@ -189,16 +139,16 @@ class BilingualDataset(Dataset):
         :param mode_low: Dataset subset for the low-ressource language (dev, test, test-covered, train-low). 
             There is no option for the high ressource language as only train-high is available.
         """
-        super(Task1Dataset).__init__()
+        super(Sig2019Dataset).__init__()
         assert (language_high, language_low) in SIG2019_HIGH_LOW_PAIRS, f"({language_high}, {language_low}) is not a valid language pair for sigmorphon 2019 bilingual analogies."
 
         if building:
-            self.dataset_high = dataset_factory(language=language_high, mode="train-high", word_encoding=word_encoding, force_rebuild=kwargs.get("force_rebuild", False), dataset_folder=dataset_folder)
-            self.dataset_low = dataset_factory(language=language_low, mode=mode_low, word_encoding=word_encoding, force_rebuild=kwargs.get("force_rebuild", False), dataset_folder=dataset_folder)
+            self.dataset_high = dataset_factory(language=language_high, mode="train-high", word_encoder=word_encoding, force_rebuild=kwargs.get("force_rebuild", False), dataset_folder=dataset_folder)
+            self.dataset_low = dataset_factory(language=language_low, mode=mode_low, word_encoder=word_encoding, force_rebuild=kwargs.get("force_rebuild", False), dataset_folder=dataset_folder)
             self.set_analogy_classes()
         elif state_dict is not None:
-            self.dataset_high = Task1Dataset(building=False, **kwargs["state_dict_high"], dataset_folder=dataset_folder)
-            self.dataset_low = Task1Dataset(building=False, **kwargs["state_dict_low"], dataset_folder=dataset_folder)
+            self.dataset_high = Sig2019Dataset(building=False, **kwargs["state_dict_high"], dataset_folder=dataset_folder)
+            self.dataset_low = Sig2019Dataset(building=False, **kwargs["state_dict_low"], dataset_folder=dataset_folder)
             self.analogies = kwargs["analogies"]
             self.features_with_analogies = kwargs["features_with_analogies"]
             self.words_with_analogies_high = kwargs["words_with_analogies_high"]
@@ -226,25 +176,32 @@ class BilingualDataset(Dataset):
         c, feature_d, d = self.dataset_low.raw_data[cd_index]
         return self.dataset_high.encode_word(a), self.dataset_high.encode_word(b), self.dataset_low.encode_word(c), self.dataset_low.encode_word(d)
 
-def dataset_factory(language="german", mode="train-high", word_encoding="none", dataset_pkl_folder=SIG2019_DATASET_PATH, dataset_folder=SIG2019_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Task1Dataset:
+def dataset_factory(language="german", mode="train-high", word_encoder: t.Union[t.Type, Encoder, str, None]=None, dataset_pkl_folder=SIG2019_DATASET_PATH, dataset_folder=SIG2019_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Sig2019Dataset:
     assert mode in SIG2019_HIGH_MODES or mode in SIG2019_LOW_MODES
-    filepath = join(dataset_pkl_folder, f"{language}-{mode}-{word_encoding}.pkl")
+    filepath = join(dataset_pkl_folder, f"{language}-{mode}-{encoder_as_string(word_encoder)}.pkl")
     if force_rebuild or not exists(filepath):
+        logging.info(f"Starting building the dataset {filepath}...")
         if mode not in {"train-high", "train-low"}:
-            train_dataset = dataset_factory(language=language, mode="train-low", word_encoding=word_encoding, dataset_pkl_folder=dataset_pkl_folder, force_rebuild=force_rebuild, dataset_folder=dataset_folder)
+            logging.info(f"Using the corresponding training dataset for  {filepath}...")
+            train_dataset = dataset_factory(language=language, mode="train-low", word_encoder=word_encoder, dataset_pkl_folder=dataset_pkl_folder, force_rebuild=force_rebuild, dataset_folder=dataset_folder)
             state_dict = train_dataset.state_dict()
             state_dict["mode"] = mode
-            dataset = Task1Dataset(building=False, state_dict=state_dict, dataset_folder=dataset_folder)
+            dataset = Sig2019Dataset(building=False, state_dict=state_dict, dataset_folder=dataset_folder)
+            logging.info(f"Computing the analogies for {filepath}...")
             dataset.set_analogy_classes()
         else:
-            dataset = Task1Dataset(language=language, mode=mode, word_encoding=word_encoding, dataset_folder=dataset_folder)
+            dataset = Sig2019Dataset(language=language, mode=mode, word_encoder=word_encoder, dataset_folder=dataset_folder)
+        logging.info(f"Dataset {filepath} built.")
         
         if serialization:
+            logging.info(f"Saving the dataset to {filepath}...")
             state_dict = dataset.state_dict()
             save_state_dict(state_dict, filepath)
+            logging.info(f"Dataset saved to {filepath}.")
     else:
         state_dict = load_state_dict(filepath)
-        dataset = Task1Dataset.from_state_dict(state_dict=state_dict, dataset_folder=dataset_folder)
+        dataset = Sig2019Dataset.from_state_dict(state_dict=state_dict, dataset_folder=dataset_folder)
+        logging.info(f"Dataset {filepath} loaded.")
     return dataset
 
 def bilingual_dataset_factory(language_high="german", language_low="middle-high-german", mode_low="train-low", word_encoding="none", dataset_pkl_folder=SIG2019_DATASET_PATH, dataset_folder=SIG2019_PATH, force_rebuild=False, serialization=SERIALIZATION) -> BilingualDataset:
@@ -401,4 +358,19 @@ if __name__ == "__main__":
         #    ], row="element", col="mode", kind="bar", sharex="row", sharey="none", aspect=10)
         #fig.savefig(join(SIG2019_DATASET_PATH, "none-summary-low.png"))
 
-    compare_languages()
+    #compare_languages()
+    dataset = dataset_factory(word_encoder="char")
+    print(len(dataset.analogies))
+    print(dataset[1])
+    print(dataset.analogies[1])
+    print(dataset.raw_data[dataset.analogies[1][0]])
+    print(dataset.raw_data[dataset.analogies[1][1]])
+
+    print()
+
+    dataset = dataset_factory(word_encoder=id)
+    print(len(dataset.analogies))
+    print(dataset[1])
+    print(dataset.analogies[1])
+    print(dataset.raw_data[dataset.analogies[1][0]])
+    print(dataset.raw_data[dataset.analogies[1][1]])

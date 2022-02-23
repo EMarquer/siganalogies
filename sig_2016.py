@@ -1,12 +1,10 @@
-
-from torch import zeros, LongTensor
-from torch.utils.data import Dataset
-import torch.nn as nn
 from .config import SERIALIZATION, SIG2016_LANGUAGES, SIG2016_PATH, SIG2016_MODES, SIG2016_DATASET_PATH
 from os.path import exists, join
 from datetime import datetime
 from .abstract_analogy_dataset import AbstractAnalogyDataset, StateDict, save_state_dict, load_state_dict
 import logging
+import typing as t
+from .encoders import Encoder, encoder_as_string
 
 def load_data(language="german", mode="train", task=2, dataset_folder=SIG2016_PATH):
     '''Load the data from the sigmorphon files in the form of a list of triples (lemma, target_features, target_word).'''
@@ -18,138 +16,11 @@ def load_data(language="german", mode="train", task=2, dataset_folder=SIG2016_PA
     with open(join(dataset_folder, filename), "r", encoding="utf-8") as f:
         return [line.strip().split('\t') for line in f]
 
-class Task2Dataset(Dataset):
-    """A dataset class for manipultating files of task 2 of Sigmorphon2016.
-    
-    Not used, and not recommended for usage."""
-    def __init__(self, language="german", mode="train", feature_encoding = "char", word_encoding="none", dataset_folder=SIG2016_PATH):
-        super(Task2Dataset).__init__()
-        self.language = language
-        self.mode = mode
-        self.feature_encoding = feature_encoding
-        self.word_encoding = word_encoding
-        self.raw_data = load_data(language = language, mode = mode, task = 2, dataset_folder=dataset_folder)
-
-        self.prepare_data()
-
-    def prepare_data(self):
-        """Generate embeddings for the 4 elements.
-
-        There are 3 modes to encode the features:
-        - 'feature-value': sequence of each indivitual feature, wrt. a dictioanry of values;
-        - 'sum': the one-hot vectors derived using 'feature-value' are summed, resulting in a vector of dimension corresponding to the number of possible values for all the possible features;
-        - 'char': sequence of ids of characters, wrt. a dictioanry of values.
-
-        There are 2 modes to encode the words:
-        - 'glove': [only for German] pre-trained GloVe embedding of the word;
-        - 'char': sequence of ids of characters, wrt. a dictioanry of values;
-        - 'none' or None: no encoding, particularly useful when coupled with BERT encodings.
-        """
-        if self.feature_encoding == "char":
-            # generate character vocabulary
-            voc = set()
-            for feature_a, word_a, feature_b, word_b in self.raw_data:
-                voc.update(feature_a)
-                voc.update(feature_b)
-            self.feature_voc = list(voc)
-            self.feature_voc.sort()
-            self.feature_voc_id = {character: i for i, character in enumerate(self.feature_voc)}
-
-        elif self.feature_encoding == "feature-value" or self.feature_encoding == "sum":
-            # generate feature-value vocabulary
-            voc = set()
-            for feature_a, word_a, feature_b, word_b in self.raw_data:
-                voc.update(feature_a.split(","))
-                voc.update(feature_b.split(","))
-            self.feature_voc = list(voc)
-            self.feature_voc.sort()
-            self.feature_voc_id = {character: i for i, character in enumerate(self.feature_voc)}
-        else:
-            print(f"Unsupported feature encoding: {self.feature_encoding}")
-
-
-        if self.word_encoding == "char":
-            # generate character vocabulary
-            voc = set()
-            for feature_a, word_a, feature_b, word_b in self.raw_data:
-                voc.update(word_a)
-                voc.update(word_b)
-            self.char_voc = list(voc)
-            self.char_voc.sort()
-            self.char_voc_id = {character: i for i, character in enumerate(self.char_voc)}
-
-        elif self.word_encoding == "glove":
-            raise ValueError(f"GloVe word encoding not supported anymore. Coming back in a later version!")
-            from embeddings.glove import GloVe
-            self.glove = GloVe()
-
-        elif self.word_encoding == "none" or self.word_encoding is None:
-            pass
-
-        else:
-            print(f"Unsupported word encoding: {self.word_encoding}")
-
-    def encode_word(self, word):
-        if self.word_encoding == "char":
-            return LongTensor([self.char_voc_id[c] for c in word])
-        elif self.word_encoding == "glove":
-            return self.glove.embeddings.get(word, zeros(300))
-        elif self.word_encoding == "none" or self.word_encoding is None:
-            return word
-        else:
-            raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
-    def encode_feature(self, feature):
-        if self.feature_encoding == "char":
-            return LongTensor([self.feature_voc_id[c] for c in feature])
-        elif self.feature_encoding == "feature-value" or self.feature_encoding == "sum":
-            feature_enc = LongTensor([self.feature_voc_id[feature] for feature in feature.split(",")])
-            if self.feature_encoding == "sum":
-                feature_enc = nn.functional.one_hot(feature_enc, num_classes=len(self.feature_voc_id)).sum(dim=0)
-            return feature_enc
-        else:
-            raise ValueError(f"Unsupported feature encoding: {self.feature_encoding}")
-    def encode(self, feature_a, word_a, feature_b, word_b):
-        return self.encode_feature(feature_a), self.encode_word(word_a), self.encode_feature(feature_b), self.encode_word(word_b)
-
-    def decode_word(self, word):
-        if self.word_encoding == "char":
-            return "".join([self.char_voc[char.item()] for char in word])
-        elif self.word_encoding == "glove":
-            print("Word decoding not supported with GloVe.")
-        elif self.word_encoding == "none" or self.word_encoding is None:
-            print("Word decoding not necessary when using 'none' encoding.")
-            return word
-        else:
-            print(f"Unsupported word encoding: {self.word_encoding}")
-
-    def decode_feature(self, feature):
-        if self.word_encoding == "char":
-            return "".join([self.feature_voc[char.item()] for char in feature])
-        elif self.feature_encoding == "feature-value":
-            return "".join([self.feature_voc[f.item()] for f in feature])
-        elif self.feature_encoding == "sum":
-            print("Feature decoding not supported with 'sum' encoding.")
-        else:
-            print(f"Unsupported feature encoding: {self.feature_encoding}")
-
-    def __len__(self): return len(self.raw_data)
-    def __getitem__(self, index): return self.encode(*self.raw_data[index])
-    def words(self):
-        for feature_a, word_a, feature_b, word_b in self:
-            yield word_a
-            yield word_b
-    def features(self):
-        for feature_a, word_a, feature_b, word_b in self:
-            yield feature_a
-            yield feature_b
-
-    def get_vocab(self):
-        return set(w for w1w2 in ((w1, w2) for feature1,w1,feature2,w2 in self.raw_data) for w in w1w2)
-
-class Task1Dataset(AbstractAnalogyDataset):
+class Sig2016Dataset(AbstractAnalogyDataset):
     @staticmethod
     def from_state_dict(state_dict: StateDict, dataset_folder=SIG2016_PATH):
-        dataset = Task1Dataset(building=False, dataset_folder=dataset_folder, state_dict=state_dict)
+        dataset = Sig2016Dataset(building=False, dataset_folder=dataset_folder, state_dict=state_dict,
+            word_encoder=state_dict["word_encoder"])
         return dataset
 
     def state_dict(self) -> StateDict:
@@ -158,67 +29,31 @@ class Task1Dataset(AbstractAnalogyDataset):
             "timestamp": datetime.now(),
             "language": self.language,
             "mode": self.mode,
-            "word_encoding": self.word_encoding,
+            "word_encoder": self.word_encoder.state_dict(),
             "analogies": self.analogies,
             "word_voc": self.word_voc,
             "features": self.features,
             "features_with_analogies": self.features_with_analogies,
             "words_with_analogies": self.words_with_analogies
         }
-        if self.word_encoding == "char":
-            state_dict["char_voc"] = self.char_voc
-            state_dict["char_voc_id"] = self.char_voc_id
         return state_dict
 
     """A dataset class for manipultating files of task 1 of Sigmorphon2016."""
-    def __init__(self, language="german", mode="train", word_encoding="none", building=True, state_dict: StateDict=None, dataset_folder=SIG2016_PATH, **kwargs):
-        super(Task1Dataset).__init__()
+    def __init__(self, language="german", mode="train", word_encoder: t.Union[t.Type, Encoder, str, None]=None, building=True, state_dict: StateDict=None, dataset_folder=SIG2016_PATH, **kwargs):
+        super().__init__(word_encoder=word_encoder)
         self.language = language
         self.mode = mode
-        self.word_encoding = word_encoding
         self.raw_data = load_data(language=language, mode=mode, task=1, dataset_folder=dataset_folder)
 
         if building:
             self.set_analogy_classes()
-            self.prepare_data()
+            self.prepare_encoder()
         elif state_dict is not None:
             self.analogies = state_dict["analogies"]
             self.word_voc = state_dict["word_voc"]
             self.features = state_dict["features"]
             self.features_with_analogies = state_dict["features_with_analogies"]
             self.words_with_analogies = state_dict["words_with_analogies"]
-            if self.word_encoding == "char":
-                self.char_voc = state_dict["char_voc"]
-                self.char_voc_id = state_dict["char_voc_id"]
-
-    def prepare_data(self):
-        """Generate embeddings for the 4 elements.
-
-        There are 2 modes to encode the words:
-        - 'glove': [only for German if model was downloaded] pre-trained GloVe embedding of the word;
-        - 'char': sequence of ids of characters, wrt. a dictioanry of values;
-        - 'none' or None: no encoding, particularly useful when coupled with BERT encodings.
-        """
-        if self.word_encoding == "char":
-            # generate character vocabulary
-            voc = set()
-            for word_a, feature_b, word_b in self.raw_data:
-                voc.update(word_a)
-                voc.update(word_b)
-            self.char_voc = list(voc)
-            self.char_voc.sort()
-            self.char_voc_id = {character: i for i, character in enumerate(self.char_voc)}
-
-        elif self.word_encoding == "glove":
-            raise ValueError(f"GloVe word encoding not supported anymore. Coming back in a later version!")
-            from embeddings.glove import GloVe
-            self.glove = GloVe()
-
-        elif self.word_encoding == "none" or self.word_encoding is None:
-            pass
-
-        else:
-            raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
 
     def set_analogy_classes(self):
         self.analogies = []
@@ -240,69 +75,55 @@ class Task1Dataset(AbstractAnalogyDataset):
                     self.words_with_analogies.add(word_a_j)
                     self.words_with_analogies.add(word_b_j)
 
-    def encode_word(self, word):
-        """Encode a single word using the selected encoding process."""
-        if self.word_encoding == "char":
-            return LongTensor([self.char_voc_id[c] if c in self.char_voc_id.keys() else -1 for c in word])
-        elif self.word_encoding == "glove":
-            return self.glove.embeddings.get(word, zeros(300))
-        elif self.word_encoding == "none" or self.word_encoding is None:
-            return word
-        else:
-            raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
-
-    def decode_word(self, word):
-        """Decode a single word using the selected encoding process."""
-        if self.word_encoding == "char":
-            return "".join([self.char_voc[char.item()] for char in word])
-        elif self.word_encoding == "none" or self.word_encoding is None:
-            logging.info("Word decoding not necessary when using 'none' encoding.")
-            return word
-        elif self.word_encoding == "glove":
-            raise ValueError("Word decoding not supported with GloVe.")
-        else:
-            raise ValueError(f"Unsupported word encoding: {self.word_encoding}")
-
     def __getitem__(self, index):
         ab_index, cd_index = self.analogies[index]
         a, feature_b, b = self.raw_data[ab_index]
         c, feature_d, d = self.raw_data[cd_index]
         return self.encode(a, b, c, d)
 
-def dataset_factory(language="german", mode="train", word_encoding="none", dataset_pkl_folder=SIG2016_DATASET_PATH, dataset_folder=SIG2016_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Task1Dataset:
-    filepath = join(dataset_pkl_folder, f"{language}-{mode}-{word_encoding}.pkl")
+def dataset_factory(language="german", mode="train", word_encoder="none", dataset_pkl_folder=SIG2016_DATASET_PATH, dataset_folder=SIG2016_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Sig2016Dataset:
+    filepath = join(dataset_pkl_folder, f"{language}-{mode}-{encoder_as_string(word_encoder)}.pkl")
     if force_rebuild or not exists(filepath):
+        logging.info(f"Starting building the dataset {filepath}...")
         if mode != "train":
-            train_dataset = dataset_factory(language=language, mode="train", word_encoding=word_encoding, dataset_pkl_folder=dataset_pkl_folder, dataset_folder=dataset_folder, force_rebuild=force_rebuild)
+            logging.info(f"Using the corresponding training dataset for  {filepath}...")
+            train_dataset = dataset_factory(language=language, mode="train", word_encoder=word_encoder, dataset_pkl_folder=dataset_pkl_folder, dataset_folder=dataset_folder, force_rebuild=force_rebuild)
             state_dict = train_dataset.state_dict()
             state_dict["mode"] = mode
-            dataset = Task1Dataset(building=False, dataset_folder=dataset_folder, state_dict=state_dict)
+            dataset = Sig2016Dataset(building=False, dataset_folder=dataset_folder, state_dict=state_dict)
+            logging.info(f"Computing the analogies for {filepath}...")
             dataset.set_analogy_classes()
         else:
-            dataset = Task1Dataset(language=language, mode=mode, word_encoding=word_encoding, dataset_folder=dataset_folder)
+            dataset = Sig2016Dataset(language=language, mode=mode, word_encoder=word_encoder, dataset_folder=dataset_folder)
+        logging.info(f"Dataset {filepath} built.")
         
         if serialization:
+            logging.info(f"Saving the dataset to {filepath}...")
             state_dict = dataset.state_dict()
             save_state_dict(state_dict, filepath)
+            logging.info(f"Dataset saved to {filepath}.")
     else:
         state_dict = load_state_dict(filepath)
-        dataset = Task1Dataset.from_state_dict(state_dict=state_dict, dataset_folder=dataset_folder)
+        dataset = Sig2016Dataset.from_state_dict(state_dict=state_dict, dataset_folder=dataset_folder)
+        logging.info(f"Dataset {filepath} loaded.")
     return dataset
 
 if __name__ == "__main__":
-    dataset = dataset_factory()
+    dataset = dataset_factory(word_encoder="char")
     print(len(dataset.analogies))
-    print(dataset[2500])
-    print(len(Task2Dataset()))
-    print(Task2Dataset()[2500])
-    print(Task2Dataset().raw_data[2500])
-
-    print()
+    print(dataset[1])
     print(dataset.analogies[1])
     print(dataset.raw_data[dataset.analogies[1][0]])
     print(dataset.raw_data[dataset.analogies[1][1]])
 
     print()
-    print(dataset.analogies[2:10])
-    print(dataset.raw_data[dataset.analogies[2][0]])
-    print(dataset.raw_data[dataset.analogies[2][1]])
+
+    dataset = dataset_factory(word_encoder=id)
+    print(len(dataset.analogies))
+    print(dataset[1])
+    print(dataset.analogies[1])
+    print(dataset.raw_data[dataset.analogies[1][0]])
+    print(dataset.raw_data[dataset.analogies[1][1]])
+    #print(len(Task2Dataset()))
+    #print(Task2Dataset()[2500])
+    #print(Task2Dataset().raw_data[2500])
