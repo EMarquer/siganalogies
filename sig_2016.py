@@ -82,7 +82,6 @@ class Sig2016Dataset(AbstractAnalogyDataset):
         return self.encode(a, b, c, d)
 
 def dataset_factory(language="german", mode="train", word_encoder="none", dataset_pkl_folder=SIG2016_DATASET_PATH, dataset_folder=SIG2016_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Sig2016Dataset:
-    print(word_encoder)
     filepath = join(dataset_pkl_folder, f"{language}-{mode}-{encoder_as_string(word_encoder)}.pkl")
     if force_rebuild or not exists(filepath):
         logging.info(f"Starting building the dataset {filepath}...")
