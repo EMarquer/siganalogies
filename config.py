@@ -5,7 +5,6 @@ SERIALIZATION = True
 
 THIS_DIR = dirname(__file__)
 ROOT = join(THIS_DIR, "..")
-ROOT = join(THIS_DIR, "../nn-morpho-analogy")
 DATASET_PATH = join(THIS_DIR, "precomputed")
 if not exists(DATASET_PATH):
     mkdir(DATASET_PATH)
