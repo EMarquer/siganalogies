@@ -12,6 +12,7 @@ The `siganalogies` package is design to manipulate morphological analogies built
   - [Factories](#factories)
     - [Generic factory](#generic-factory)
     - [Dataset-specific factories](#dataset-specific-factories)
+  - [Data encoding](#data-encoding)
   - [Data augmentation](#data-augmentation)
     - [Augmented forms (i.e. permutations)](#augmented-forms-ie-permutations)
     - [Augmented forms (i.e. permutations) with central permutation not accepted as a property of analogy](#augmented-forms-ie-permutations-with-central-permutation-not-accepted-as-a-property-of-analogy)
@@ -140,22 +141,16 @@ Dataset objects are subclasses of `torch.utils.data.Dataset` and should be creat
 A dataset object has the following attributes:
 - `language`: the dataset language;
 - `mode`: the subset of the language data, using the seperation done in Sigmorphon (for Sigmorphon 2016: `train`, `dev`, `test`; for Sigmorphon 2019 high ressource languages: `train-high`; for Sigmorphon 2019 low ressource languages: `train-low`, `dev`, `test`; test-covered is supported for neither dataset);
-- `word_encoding`: the word encoding strategy, used by the dataset object (`char` to encode using character IDs based on the characters of the training dataset, or `none` to return the text itself, which is usefull when using a custom encoding strategy);
-  - if `word_encoding` is `char`, two attributes are presents: `char_voc` a list of characters found in the dataset and `char_voc_id` a dictionary linking characters of `char_voc` to their index in the list;
+- `word_encoder`: the word encoding strategy, used by the dataset object (`char` to encode using character IDs based on the characters of the training dataset, or `none` to return the text itself, which is usefull when using a custom encoding strategy); available Encoders are in the `siganalogies.encoders` subpackage;
 - several other statistic-oriented attributes are computed when building the dataset:
   - `features`: a list of all the features in the dataset;
   - `word_voc`: a list of all the words in the dataset;
   - `features_with_analogies`: a list of all the features in the dataset which are present in at least one analogy;
   - `words_with_analogies`: a list of all the words in the dataset which are present in at least one analogy.
 
-A dataset object has the key methods of a PyTorch Dataset object (`__len__` and `__getitem__`) as well as the following methods:
-- `encode_word`, to encode a string according to the `word_encoding` strategy;
-- `encode`, a wrapper to encode four words at once;
-- `decode_word`, to decode a string according to the `word_encoding` strategy.
-
-Finally, other methods are available, none of which should be used in a standard usage (trust the factories to deal with things accordingly):
+A dataset object has the key methods of a PyTorch Dataset object (`__len__` and `__getitem__`) as well as the following methods, none of which should be used in a standard usage (trust the factories to deal with things accordingly):
 - `state_dict`, and the corresponding static method `Dataset.from_state_dict`, used in background by the factories to save and load datasets;
-- `prepare_data` to prepare the word encoding;
+- `prepare_encoder` to prepare the word encoding;
 - `set_analogy_classes` to compute the analogical pairs;
 
 ### Factories
@@ -222,6 +217,11 @@ dataset = dataset_factory(
     force_rebuild=False,
     serialization=SERIALIZATION)
 ```
+
+### Data encoding
+There are two strategies available for word encoding.
+1. The first strategy is to provide, depending on the needs, an existing or custom `encoders.Encoder` object, `"char"`, or `"none"`/`None`/`id` to the Sigmorphon Dataset object. This will apply the encoding at each call of the dataset's `__getitem__` method.
+2. The second strategy is to do the encoding in a collate function of PyTorch or the equivalent in whatever language you are using. There, you can also use an existing or custom `encoders.Encoder` object, or define the collate function to fit your needs.
 
 ### Data augmentation
 To be completed.
