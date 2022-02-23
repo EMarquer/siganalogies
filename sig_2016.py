@@ -82,6 +82,7 @@ class Sig2016Dataset(AbstractAnalogyDataset):
         return self.encode(a, b, c, d)
 
 def dataset_factory(language="german", mode="train", word_encoder="none", dataset_pkl_folder=SIG2016_DATASET_PATH, dataset_folder=SIG2016_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Sig2016Dataset:
+    print(word_encoder)
     filepath = join(dataset_pkl_folder, f"{language}-{mode}-{encoder_as_string(word_encoder)}.pkl")
     if force_rebuild or not exists(filepath):
         logging.info(f"Starting building the dataset {filepath}...")
@@ -90,7 +91,7 @@ def dataset_factory(language="german", mode="train", word_encoder="none", datase
             train_dataset = dataset_factory(language=language, mode="train", word_encoder=word_encoder, dataset_pkl_folder=dataset_pkl_folder, dataset_folder=dataset_folder, force_rebuild=force_rebuild)
             state_dict = train_dataset.state_dict()
             state_dict["mode"] = mode
-            dataset = Sig2016Dataset(building=False, dataset_folder=dataset_folder, state_dict=state_dict)
+            dataset = Sig2016Dataset.from_state_dict(state_dict, dataset_folder=dataset_folder)
             logging.info(f"Computing the analogies for {filepath}...")
             dataset.set_analogy_classes()
         else:

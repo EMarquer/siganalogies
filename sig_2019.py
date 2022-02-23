@@ -186,7 +186,7 @@ def dataset_factory(language="german", mode="train-high", word_encoder: t.Union[
             train_dataset = dataset_factory(language=language, mode="train-low", word_encoder=word_encoder, dataset_pkl_folder=dataset_pkl_folder, force_rebuild=force_rebuild, dataset_folder=dataset_folder)
             state_dict = train_dataset.state_dict()
             state_dict["mode"] = mode
-            dataset = Sig2019Dataset(building=False, state_dict=state_dict, dataset_folder=dataset_folder)
+            dataset = Sig2019Dataset.from_state_dict(state_dict, dataset_folder=dataset_folder)
             logging.info(f"Computing the analogies for {filepath}...")
             dataset.set_analogy_classes()
         else:
