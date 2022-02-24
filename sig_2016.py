@@ -6,6 +6,9 @@ import logging
 import typing as t
 from .encoders import Encoder, encoder_as_string
 
+# create logger
+module_logger = logging.getLogger(f'{__name__}.siganalogies.sig_2016')
+
 def load_data(language="german", mode="train", task=2, dataset_folder=SIG2016_PATH):
     '''Load the data from the sigmorphon files in the form of a list of triples (lemma, target_features, target_word).'''
     assert language in SIG2016_LANGUAGES, f"Language '{language}' is unkown, allowed languages are {SIG2016_LANGUAGES}"
@@ -84,28 +87,28 @@ class Sig2016Dataset(AbstractAnalogyDataset):
 def dataset_factory(language="german", mode="train", word_encoder="none", dataset_pkl_folder=SIG2016_DATASET_PATH, dataset_folder=SIG2016_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Sig2016Dataset:
     filepath = join(dataset_pkl_folder, f"{language}-{mode}-{encoder_as_string(word_encoder)}.pkl")
     if force_rebuild or not exists(filepath):
-        logging.info(f"Starting building the dataset {filepath}...")
+        module_logger.info(f"Starting building the dataset {filepath}...")
         if mode != "train":
-            logging.info(f"Using the corresponding training dataset for  {filepath}...")
+            module_logger.info(f"Using the corresponding training dataset for  {filepath}...")
             train_dataset = dataset_factory(language=language, mode="train", word_encoder=word_encoder, dataset_pkl_folder=dataset_pkl_folder, dataset_folder=dataset_folder, force_rebuild=force_rebuild)
             state_dict = train_dataset.state_dict()
             state_dict["mode"] = mode
             dataset = Sig2016Dataset.from_state_dict(state_dict, dataset_folder=dataset_folder)
-            logging.info(f"Computing the analogies for {filepath}...")
+            module_logger.info(f"Computing the analogies for {filepath}...")
             dataset.set_analogy_classes()
         else:
             dataset = Sig2016Dataset(language=language, mode=mode, word_encoder=word_encoder, dataset_folder=dataset_folder)
-        logging.info(f"Dataset {filepath} built.")
+        module_logger.info(f"Dataset {filepath} built.")
         
         if serialization:
-            logging.info(f"Saving the dataset to {filepath}...")
+            module_logger.info(f"Saving the dataset to {filepath}...")
             state_dict = dataset.state_dict()
             save_state_dict(state_dict, filepath)
-            logging.info(f"Dataset saved to {filepath}.")
+            module_logger.info(f"Dataset saved to {filepath}.")
     else:
         state_dict = load_state_dict(filepath)
         dataset = Sig2016Dataset.from_state_dict(state_dict=state_dict, dataset_folder=dataset_folder)
-        logging.info(f"Dataset {filepath} loaded.")
+        module_logger.info(f"Dataset {filepath} loaded.")
     return dataset
 
 if __name__ == "__main__":
