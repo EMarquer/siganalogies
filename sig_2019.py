@@ -8,7 +8,7 @@ import typing as t
 from .encoders import Encoder, encoder_as_string
 
 # create logger
-module_logger = logging.getLogger(f'{__name__}.siganalogies.sig_2019')
+module_logger = logging.getLogger(__name__)
 
 def load_data(language="german", mode="train-high", dataset_folder=SIG2019_PATH):
     """Load the data from the sigmorphon files in the form of a list of triples (lemma, target_features, target_word)."""
