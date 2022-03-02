@@ -53,8 +53,11 @@ class Sig2019Dataset(AbstractAnalogyDataset):
     @staticmethod
     def from_state_dict(state_dict: StateDict, dataset_folder=SIG2019_PATH) -> AbstractAnalogyDataset:
         """Create a dataset from saved data."""
-        dataset = Sig2019Dataset(building=False, dataset_folder=dataset_folder, state_dict=state_dict,
-            word_encoder=state_dict["word_encoder"])
+        dataset = Sig2019Dataset(
+            language=state_dict["language"],
+            mode=state_dict["mode"],
+            word_encoder=state_dict["word_encoder"],
+            building=False, state_dict=state_dict, dataset_folder=dataset_folder)
         return dataset
 
     def state_dict(self) -> StateDict:

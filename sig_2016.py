@@ -22,8 +22,11 @@ def load_data(language="german", mode="train", task=2, dataset_folder=SIG2016_PA
 class Sig2016Dataset(AbstractAnalogyDataset):
     @staticmethod
     def from_state_dict(state_dict: StateDict, dataset_folder=SIG2016_PATH):
-        dataset = Sig2016Dataset(building=False, dataset_folder=dataset_folder, state_dict=state_dict,
-            word_encoder=state_dict["word_encoder"])
+        dataset = Sig2016Dataset(
+            language=state_dict["language"],
+            mode=state_dict["mode"],
+            word_encoder=state_dict["word_encoder"],
+            building=False, state_dict=state_dict, dataset_folder=dataset_folder)
         return dataset
 
     def state_dict(self) -> StateDict:
@@ -77,9 +80,13 @@ class Sig2016Dataset(AbstractAnalogyDataset):
                     self.words_with_analogies.add(word_b_i)
                     self.words_with_analogies.add(word_a_j)
                     self.words_with_analogies.add(word_b_j)
+                    assert i+1+j<len(self.raw_data), f"{i+1+j=}<{len(self.raw_data)=}"
+                    assert i<len(self.raw_data), f"{i=}<{len(self.raw_data)=}"
 
     def __getitem__(self, index):
         ab_index, cd_index = self.analogies[index]
+        assert cd_index<len(self.raw_data), f"{cd_index=}<{len(self.raw_data)=}"
+        assert ab_index<len(self.raw_data), f"{cd_index=}<{len(self.raw_data)=}"
         a, feature_b, b = self.raw_data[ab_index]
         c, feature_d, d = self.raw_data[cd_index]
         return self.encode(a, b, c, d)
@@ -103,6 +110,7 @@ def dataset_factory(language="german", mode="train", word_encoder="none", datase
         if serialization:
             module_logger.info(f"Saving the dataset to {filepath}...")
             state_dict = dataset.state_dict()
+            print("3", state_dict["language"])
             save_state_dict(state_dict, filepath)
             module_logger.info(f"Dataset saved to {filepath}.")
     else:
