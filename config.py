@@ -1,7 +1,8 @@
 from os.path import exists, dirname, join
 from os import mkdir
-
-SERIALIZATION = True
+import json
+import logging
+logger = logging.getLogger(__name__)
 
 THIS_DIR = dirname(__file__)
 ROOT = join(THIS_DIR, "..")
@@ -9,18 +10,43 @@ DATASET_PATH = join(THIS_DIR, "precomputed")
 if not exists(DATASET_PATH):
     mkdir(DATASET_PATH)
 
-SIG2016_PATH = join(ROOT, "sigmorphon2016/data/")
-SIG2016_DATASET_PATH = join(DATASET_PATH, "2016")
-if not exists(SIG2016_DATASET_PATH):
-    mkdir(SIG2016_DATASET_PATH)
+# custom logging
+CUSTOM_CONFIG_FILE_NAME = "siganalogies.cfg.json"
+CUSTOM_CONFIG_FILE = None
+LOADED_CONFIG = None
+if (# we look, in order of priority
+    exists(file_name:=CUSTOM_CONFIG_FILE_NAME) or #local
+    exists(file_name:=join(ROOT, CUSTOM_CONFIG_FILE_NAME)) or #at base of packages
+    exists(file_name:=join(THIS_DIR, CUSTOM_CONFIG_FILE_NAME))): #in siganalogies package
+    CUSTOM_CONFIG_FILE = file_name
+    try:
+        with open(CUSTOM_CONFIG_FILE, "r") as f:
+            LOADED_CONFIG = json.load(f)
+        logger.info(f"siganalogies config file found at {file_name}, it contains the following keys:\n{list(LOADED_CONFIG.keys())}")
+    except Exception:
+        logger.info(f"siganalogies config file found at {file_name}, but loading failed")
+else:
+    logger.info(f"siganalogies config file not found at either {CUSTOM_CONFIG_FILE_NAME}, {join(ROOT, CUSTOM_CONFIG_FILE_NAME)}, or {join(THIS_DIR, CUSTOM_CONFIG_FILE_NAME)}")
+def cfg(name):
+    if LOADED_CONFIG and name in LOADED_CONFIG.keys():
+        return LOADED_CONFIG[name]
+    else:
+        return None
+
+SERIALIZATION = cfg("SERIALIZATION") if cfg("SERIALIZATION") is not None else True
+
+SIG2016_DATASET_PATH = cfg("SIG2016_DATASET_PATH") or join(ROOT, "sigmorphon2016/data/")
+SIG2016_SERIALIZATION_PATH = cfg("SIG2016_SERIALIZATION_PATH") or join(DATASET_PATH, "2016")
+if not exists(SIG2016_SERIALIZATION_PATH):
+    mkdir(SIG2016_SERIALIZATION_PATH)
 SIG2016_LANGUAGES = ["arabic", "finnish", "georgian", "german", "hungarian", "japanese", "maltese", "navajo", "russian", "spanish", "turkish"]
 SIG2016_LANGUAGES_SHORT = ["ar", "fi", "ka", "de", "hu", "mt", "nv", "ru", "es", "tr"] # for BPEmb subword embeddings
 SIG2016_MODES = ["train", "dev", "test"] # "test-covered" is not used because it is not exactly the same format as the others
 
-SIG2019_PATH = join(ROOT, "sigmorphon2019/task1")
-SIG2019_DATASET_PATH = join(DATASET_PATH, "2019")
-if not exists(SIG2019_DATASET_PATH):
-    mkdir(SIG2019_DATASET_PATH)
+SIG2019_DATASET_PATH = cfg("SIG2019_DATASET_PATH") or join(ROOT, "sigmorphon2019/task1")
+SIG2019_SERIALIZATION_PATH = cfg("SIG2019_SERIALIZATION_PATH") or join(DATASET_PATH, "2019")
+if not exists(SIG2019_SERIALIZATION_PATH):
+    mkdir(SIG2019_SERIALIZATION_PATH)
 SIG2019_FOLDERS = [
     "adyghe--kabardian", "albanian--breton", "arabic--classical-syriac", "arabic--maltese", "arabic--turkmen", "armenian--kabardian",
     "asturian--occitan", "bashkir--azeri", "bashkir--crimean-tatar", "bashkir--kazakh", "bashkir--khakas", "bashkir--tatar", "bashkir--turkmen",

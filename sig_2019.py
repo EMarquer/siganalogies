@@ -1,6 +1,6 @@
 from os.path import exists, join
 from torch.utils.data import Dataset
-from .config import SERIALIZATION, SIG2019_HIGH_LOW_PAIRS, SIG2019_LANGUAGES, SIG2019_PATH, SIG2019_DATASET_PATH, SIG2019_HIGH, SIG2019_LOW, SIG2019_HIGH_MODES, SIG2019_LOW_MODES
+from .config import SERIALIZATION, SIG2019_HIGH_LOW_PAIRS, SIG2019_LANGUAGES, SIG2019_DATASET_PATH, SIG2019_SERIALIZATION_PATH, SIG2019_HIGH, SIG2019_LOW, SIG2019_HIGH_MODES, SIG2019_LOW_MODES
 from datetime import datetime
 import logging
 from .abstract_analogy_dataset import AbstractAnalogyDataset, StateDict, save_state_dict, load_state_dict
@@ -10,7 +10,7 @@ from .encoders import Encoder, encoder_as_string
 # create logger
 module_logger = logging.getLogger(__name__)
 
-def load_data(language="german", mode="train-high", dataset_folder=SIG2019_PATH):
+def load_data(language="german", mode="train-high", dataset_folder=SIG2019_DATASET_PATH):
     """Load the data from the sigmorphon files in the form of a list of triples (lemma, target_features, target_word)."""
     filename = get_file_name(language, mode, dataset_folder=dataset_folder)
     def _split_n_reorder(line): # to get elements in the same order as in Sigmorphon 2016
@@ -19,7 +19,7 @@ def load_data(language="german", mode="train-high", dataset_folder=SIG2019_PATH)
     with open(filename, "r", encoding="utf-8") as f:
         return [_split_n_reorder(line) for line in f]
 
-def get_file_name(language="german", mode="train-high", dataset_folder=SIG2019_PATH):
+def get_file_name(language="german", mode="train-high", dataset_folder=SIG2019_DATASET_PATH):
     """Checks that a language/mode combination is valid and return the complete filepath if it is.
     
     If it is not valid, raise an AssertError or a ValueError.
@@ -51,7 +51,7 @@ def get_file_name(language="german", mode="train-high", dataset_folder=SIG2019_P
 
 class Sig2019Dataset(AbstractAnalogyDataset):
     @staticmethod
-    def from_state_dict(state_dict: StateDict, dataset_folder=SIG2019_PATH) -> AbstractAnalogyDataset:
+    def from_state_dict(state_dict: StateDict, dataset_folder=SIG2019_DATASET_PATH) -> AbstractAnalogyDataset:
         """Create a dataset from saved data."""
         dataset = Sig2019Dataset(
             language=state_dict["language"],
@@ -75,7 +75,7 @@ class Sig2019Dataset(AbstractAnalogyDataset):
         }
         return state_dict
 
-    def __init__(self, language="german", mode="train-high", word_encoder: t.Union[t.Type, Encoder, str, None]=None, building=True, state_dict: StateDict=None, dataset_folder=SIG2019_PATH, **kwargs):
+    def __init__(self, language="german", mode="train-high", word_encoder: t.Union[t.Type, Encoder, str, None]=None, building=True, state_dict: StateDict=None, dataset_folder=SIG2019_DATASET_PATH, **kwargs):
         """A dataset class for manipultating files of task 1 of Sigmorphon2019."""
         super().__init__(word_encoder=word_encoder)
         assert language in SIG2019_LANGUAGES
@@ -122,7 +122,7 @@ class Sig2019Dataset(AbstractAnalogyDataset):
 
 class BilingualDataset(Dataset):
     @staticmethod
-    def from_state_dict(state_dict: StateDict, dataset_folder=SIG2019_PATH):
+    def from_state_dict(state_dict: StateDict, dataset_folder=SIG2019_DATASET_PATH):
         """Create a dataset from saved data."""
         dataset = BilingualDataset(building=False, dataset_folder=dataset_folder, **state_dict)
         return dataset
@@ -140,7 +140,7 @@ class BilingualDataset(Dataset):
         }
         return state_dict
 
-    def __init__(self, language_high="german", language_low="middle-high-german", mode_low="train-high", word_encoding="none", building=True, state_dict: StateDict=None, dataset_folder=SIG2019_PATH, **kwargs):
+    def __init__(self, language_high="german", language_low="middle-high-german", mode_low="train-high", word_encoding="none", building=True, state_dict: StateDict=None, dataset_folder=SIG2019_DATASET_PATH, **kwargs):
         """
         :param mode_low: Dataset subset for the low-ressource language (dev, test, test-covered, train-low). 
             There is no option for the high ressource language as only train-high is available.
@@ -182,7 +182,7 @@ class BilingualDataset(Dataset):
         c, feature_d, d = self.dataset_low.raw_data[cd_index]
         return self.dataset_high.encode_word(a), self.dataset_high.encode_word(b), self.dataset_low.encode_word(c), self.dataset_low.encode_word(d)
 
-def dataset_factory(language="german", mode="train-high", word_encoder: t.Union[t.Type, Encoder, str, None]=None, dataset_pkl_folder=SIG2019_DATASET_PATH, dataset_folder=SIG2019_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Sig2019Dataset:
+def dataset_factory(language="german", mode="train-high", word_encoder: t.Union[t.Type, Encoder, str, None]=None, dataset_pkl_folder=SIG2019_SERIALIZATION_PATH, dataset_folder=SIG2019_DATASET_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Sig2019Dataset:
     assert mode in SIG2019_HIGH_MODES or mode in SIG2019_LOW_MODES
     filepath = join(dataset_pkl_folder, f"{language}-{mode}-{encoder_as_string(word_encoder)}.pkl")
     if force_rebuild or not exists(filepath):
@@ -210,7 +210,7 @@ def dataset_factory(language="german", mode="train-high", word_encoder: t.Union[
         module_logger.info(f"Dataset {filepath} loaded.")
     return dataset
 
-def bilingual_dataset_factory(language_high="german", language_low="middle-high-german", mode_low="train-low", word_encoding="none", dataset_pkl_folder=SIG2019_DATASET_PATH, dataset_folder=SIG2019_PATH, force_rebuild=False, serialization=SERIALIZATION) -> BilingualDataset:
+def bilingual_dataset_factory(language_high="german", language_low="middle-high-german", mode_low="train-low", word_encoding="none", dataset_pkl_folder=SIG2019_SERIALIZATION_PATH, dataset_folder=SIG2019_DATASET_PATH, force_rebuild=False, serialization=SERIALIZATION) -> BilingualDataset:
     filepath = join(dataset_pkl_folder, f"{language_high}--{language_low}-{mode_low}-{word_encoding}.pkl")
     if force_rebuild or not exists(filepath):
         dataset = BilingualDataset(language_high=language_high, language_low=language_low, mode_low=mode_low, word_encoding=word_encoding, dataset_folder=dataset_folder)
@@ -362,7 +362,7 @@ if __name__ == "__main__":
         #fig = sns.catplot(x="language", y="value", data=df_sns[
         #    df_sns["language"].apply(lambda l: l in SIG2019_LOW) & df_sns["mode"].apply(lambda l: l in SIG2019_LOW_MODES)
         #    ], row="element", col="mode", kind="bar", sharex="row", sharey="none", aspect=10)
-        #fig.savefig(join(SIG2019_DATASET_PATH, "none-summary-low.png"))
+        #fig.savefig(join(SIG2019_SERIALIZATION_PATH, "none-summary-low.png"))
 
     #compare_languages()
     dataset = dataset_factory(word_encoder="char")

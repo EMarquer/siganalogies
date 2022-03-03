@@ -8,6 +8,7 @@ The `siganalogies` package is design to manipulate morphological analogies built
 - [Setup](#setup)
   - [[OPTIONAL] Get pre-computed dataset files for analysis or faster loading](#optional-get-pre-computed-dataset-files-for-analysis-or-faster-loading)
 - [Basic usage](#basic-usage)
+  - [Config file](#config-file)
   - [Dataset object](#dataset-object)
   - [Factories](#factories)
     - [Generic factory](#generic-factory)
@@ -135,6 +136,30 @@ You will then be able to use the dataset as any other `torch.utils.data.Dataset`
 
 The dataset object contains analogies of the form $A:B::C:D$ and $A:B::A:B$, but not the corresponding [augmented forms (i.e. permutations)](#augmented-forms-ie-permutations). We recommend to apply [data augmentation](#data-augmentation) to add said [augmented forms](#augmented-forms-ie-permutations).
 
+### Config file
+Some configuration, in particular data paths, can be changed for every iteration.
+A cleaner option is to create a `siganalogies.cfg.json` file in your project and specify the configuration here. The format of this JSON file is a dictionary with as keys the name of the configuration, followed by the configuraion new default value.
+
+The JSON file can be located either in your working directory (such that, from your script, `open('siganalogies.cfg.json')` can find the file) or in the `siganalogies` package folder (not recommended).
+
+For example, let us change the value of `siganalogies.config.SIG2016_DATASET_PATH` and `siganalogies.config.SIG2019_DATASET_PATH`.
+The corresponding `siganalogies.cfg.json` file will be:
+```json
+{
+  "SIG2016_DATASET_PATH": "new/path/to/sigmorphon2016/data/",
+  "SIG2019_DATASET_PATH": "new/path/to/sigmorphon2019/task1/"
+}
+```
+
+Suported configuration names are:
+- `SERIALIZATION`;
+- `SIG2016_DATASET_PATH`;
+- `SIG2016_SERIALIZATION_PATH`;
+- `SIG2019_DATASET_PATH`;
+- `SIG2019_SERIALIZATION_PATH`.
+
+Other configurations in `siganalogies.config` should not be modified.
+
 ### Dataset object
 Dataset objects are subclasses of `torch.utils.data.Dataset` and should be created using [factories](#factories).
 
@@ -159,6 +184,7 @@ Manually creating a dataset using its `__init__` call is not recommended, use th
 If you are unsure the data saved is correct, you can specify `force_rebuild=True` to the factory function.
 
 If you do not want to use serialized dataset (hence recompute the analogies each time) you can specify `serialize=False` to the factory function.
+To disable precomputed dataset files once, specify `serialization=False` in the factory. To disable dataset files globaly, change `SERIALIZATION=True` to `SERIALIZATION=False` in `siganalogies/config.py` or in the config file.
 Unless you also specify `force_rebuild=True`, the existing serialized datasets will still be used.
 
 #### Generic factory
@@ -175,28 +201,27 @@ dataset = dataset_factory(dataset="2016", **kwargs)
 #### Dataset-specific factories
 Specify `dataset_pkl_folder` if you do not use the recommended structure to store the precomputed dataset files.
 Defaults are: 
-- `siganalogies.config.SIG2016_DATASET_PATH="./precomputed/2016"`
-- `siganalogies.config.SIG2019_DATASET_PATH="./precomputed/2019"`
-To disable precomputed dataset files once, specify `serialization=False` in the factory. To disable dataset files globaly, change `SERIALIZATION=True` to `SERIALIZATION=False` in `siganalogies/config.py`
+- `siganalogies.config.SIG2016_SERIALIZATION_PATH="./precomputed/2016"`
+- `siganalogies.config.SIG2019_SERIALIZATION_PATH="./precomputed/2019"`
 
 Specify `dataset_folder` if you do not use the recommended structure to store the datasets. 
 Defaults are:
-- `siganalogies.config.SIG2016_PATH="../sigmorphon2016/data"`
-- `siganalogies.config.SIG2019_PATH="../sigmorphon2019/task1"`
+- `siganalogies.config.SIG2016_DATASET_PATH="../sigmorphon2016/data"`
+- `siganalogies.config.SIG2019_DATASET_PATH="../sigmorphon2019/task1"`
 
 For all the datasets, `word_encoding` can be either `"char"` for character-based encoding, or either `None` or `"none"`, if no encoding is applied and the raw text data is returned.
 
 For **Sigmorphon 2016**, the available `language`s are listed in `siganalogies.config.SIG2016_LANGUAGES`. The available `mode`s are `train`, `dev`, and `test`, also listed in `siganalogies.config.SIG2016_MODES`.
 
 ```python
-from siganalogies import dataset_factory_2016, SIG2016_DATASET_PATH, SIG2016_PATH, SERIALIZATION
+from siganalogies import dataset_factory_2016, SIG2016_SERIALIZATION_PATH, SIG2016_DATASET_PATH, SERIALIZATION
 
 dataset = dataset_factory(
     language="german",
     mode="train",
     word_encoding="none",
-    dataset_pkl_folder=SIG2016_DATASET_PATH,
-    dataset_folder=SIG2016_PATH,
+    dataset_pkl_folder=SIG2016_SERIALIZATION_PATH,
+    dataset_folder=SIG2016_DATASET_PATH,
     force_rebuild=False,
     serialization=SERIALIZATION)
 ```
@@ -206,14 +231,14 @@ For **Sigmorphon 2019**, the available `language`s are split in two categories:
 - low ressource languages, listed in `siganalogies.config.SIG2019_LOW`, and the corresponding `mode`s are `train`, `dev`, and `test`, also listed in `siganalogies.config.SIG2019_LOW_MODES`.
 
 ```python
-from siganalogies import dataset_factory_2019, SIG2019_DATASET_PATH, SIG2019_PATH, SERIALIZATION
+from siganalogies import dataset_factory_2019, SIG2019_SERIALIZATION_PATH, SIG2019_DATASET_PATH, SERIALIZATION
 
 dataset = dataset_factory(
     language="german",
     mode="train-high",
     word_encoding="none",
-    dataset_pkl_folder=SIG2019_DATASET_PATH,
-    dataset_folder=SIG2019_PATH,
+    dataset_pkl_folder=SIG2019_SERIALIZATION_PATH,
+    dataset_folder=SIG2019_DATASET_PATH,
     force_rebuild=False,
     serialization=SERIALIZATION)
 ```

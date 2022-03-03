@@ -1,4 +1,4 @@
-from .config import SERIALIZATION, SIG2016_LANGUAGES, SIG2016_PATH, SIG2016_MODES, SIG2016_DATASET_PATH
+from .config import SERIALIZATION, SIG2016_LANGUAGES, SIG2016_DATASET_PATH, SIG2016_MODES, SIG2016_SERIALIZATION_PATH
 from os.path import exists, join
 from datetime import datetime
 from .abstract_analogy_dataset import AbstractAnalogyDataset, StateDict, save_state_dict, load_state_dict
@@ -9,7 +9,7 @@ from .encoders import Encoder, encoder_as_string
 # create logger
 module_logger = logging.getLogger(__name__)
 
-def load_data(language="german", mode="train", task=2, dataset_folder=SIG2016_PATH):
+def load_data(language="german", mode="train", task=2, dataset_folder=SIG2016_DATASET_PATH):
     '''Load the data from the sigmorphon files in the form of a list of triples (lemma, target_features, target_word).'''
     assert language in SIG2016_LANGUAGES, f"Language '{language}' is unkown, allowed languages are {SIG2016_LANGUAGES}"
     assert mode in SIG2016_MODES, f"Mode '{mode}' is unkown, allowed modes are {SIG2016_MODES}"
@@ -21,7 +21,7 @@ def load_data(language="german", mode="train", task=2, dataset_folder=SIG2016_PA
 
 class Sig2016Dataset(AbstractAnalogyDataset):
     @staticmethod
-    def from_state_dict(state_dict: StateDict, dataset_folder=SIG2016_PATH):
+    def from_state_dict(state_dict: StateDict, dataset_folder=SIG2016_DATASET_PATH):
         dataset = Sig2016Dataset(
             language=state_dict["language"],
             mode=state_dict["mode"],
@@ -45,7 +45,7 @@ class Sig2016Dataset(AbstractAnalogyDataset):
         return state_dict
 
     """A dataset class for manipultating files of task 1 of Sigmorphon2016."""
-    def __init__(self, language="german", mode="train", word_encoder: t.Union[t.Type, Encoder, str, None]=None, building=True, state_dict: StateDict=None, dataset_folder=SIG2016_PATH, **kwargs):
+    def __init__(self, language="german", mode="train", word_encoder: t.Union[t.Type, Encoder, str, None]=None, building=True, state_dict: StateDict=None, dataset_folder=SIG2016_DATASET_PATH, **kwargs):
         super().__init__(word_encoder=word_encoder)
         self.language = language
         self.mode = mode
@@ -91,7 +91,7 @@ class Sig2016Dataset(AbstractAnalogyDataset):
         c, feature_d, d = self.raw_data[cd_index]
         return self.encode(a, b, c, d)
 
-def dataset_factory(language="german", mode="train", word_encoder="none", dataset_pkl_folder=SIG2016_DATASET_PATH, dataset_folder=SIG2016_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Sig2016Dataset:
+def dataset_factory(language="german", mode="train", word_encoder="none", dataset_pkl_folder=SIG2016_SERIALIZATION_PATH, dataset_folder=SIG2016_DATASET_PATH, force_rebuild=False, serialization=SERIALIZATION) -> Sig2016Dataset:
     filepath = join(dataset_pkl_folder, f"{language}-{mode}-{encoder_as_string(word_encoder)}.pkl")
     if force_rebuild or not exists(filepath):
         module_logger.info(f"Starting building the dataset {filepath}...")
