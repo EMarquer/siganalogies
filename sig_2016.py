@@ -110,7 +110,6 @@ def dataset_factory(language="german", mode="train", word_encoder="none", datase
         if serialization:
             module_logger.info(f"Saving the dataset to {filepath}...")
             state_dict = dataset.state_dict()
-            print("3", state_dict["language"])
             save_state_dict(state_dict, filepath)
             module_logger.info(f"Dataset saved to {filepath}.")
     else:
