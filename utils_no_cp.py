@@ -120,7 +120,7 @@ def n_pos_n_neg(a, b, c, d, filter_invalid=True, filter_valid=False, tensors=Tru
     elif len(positive_forms) > n:
         positive_forms = random.sample(positive_forms, n)
     else: # len(positive_forms) < n:
-        positive_forms = positive_forms + random.choices(positive_forms, n - len(positive_forms))
+        positive_forms = positive_forms + random.choices(positive_forms, k=n - len(positive_forms))
 
     # Sampling the right number
     if n is None or len(negative_forms) == n:
@@ -128,6 +128,6 @@ def n_pos_n_neg(a, b, c, d, filter_invalid=True, filter_valid=False, tensors=Tru
     elif len(negative_forms) > n:
         negative_forms = random.sample(negative_forms, n)
     else: # len(negative_forms) < n:
-        negative_forms = negative_forms + random.choices(negative_forms, n - len(negative_forms))
+        negative_forms = negative_forms + random.choices(negative_forms, k=n - len(negative_forms))
 
     return positive_forms, negative_forms
