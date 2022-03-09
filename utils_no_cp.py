@@ -37,7 +37,7 @@ def generate_negative(a, b, c, d, cp_undefined=True):
     yield b, a, c, d
     yield a, a, c, d
 
-def random_sample_negative(a, b, c, d, filter_invalid=True, tensors=True, n=8):
+def random_sample_negative(a, b, c, d, filter_invalid=True, tensors=True, n=8, cp_undefined=True):
     """Randomly sample invalid analogies from the available negative forms.
     
     In this variant, central permutation is not considered a property of analogy.
@@ -47,9 +47,9 @@ def random_sample_negative(a, b, c, d, filter_invalid=True, tensors=True, n=8):
     :param n: Number of valid and invalid forms to return. If None, all the forms will be returned, no matter the number.
     """
     # random sampling
-    return n_pos_n_neg(a, b, c, d, filter_invalid=filter_invalid, tensors=tensors, n=n)[1]
+    return n_pos_n_neg(a, b, c, d, filter_invalid=filter_invalid, tensors=tensors, n=n, cp_undefined=cp_undefined)[1]
 
-def n_pos_n_neg(a, b, c, d, filter_invalid=True, filter_valid=False, tensors=True, n=8):
+def n_pos_n_neg(a, b, c, d, filter_invalid=True, filter_valid=False, tensors=True, n=8, cp_undefined=True):
     """Generate positive examples (including the base form) and negative examples form a base analogical form.
 
     In this variant, central permutation is not considered a property of analogy.
@@ -81,7 +81,7 @@ def n_pos_n_neg(a, b, c, d, filter_invalid=True, filter_valid=False, tensors=Tru
         
         negative_forms=[(a__, b__, c__, d__)
             for a_, b_, c_, d_ in positive_forms # for each positive (valid) analogies
-            for a__, b__, c__, d__ in generate_negative(a_, b_, c_, d_) # generate 3 negative (invalid) analogies
+            for a__, b__, c__, d__ in generate_negative(a_, b_, c_, d_, cp_undefined=cp_undefined) # generate 3 negative (invalid) analogies
             if (
                 # remove potentially problematic forms (which can appear when the input is a:b:a:b for example)
                 (tensors and not tensor_in(a__, b__, c__, d__, positive_forms)) or 
@@ -95,7 +95,7 @@ def n_pos_n_neg(a, b, c, d, filter_invalid=True, filter_valid=False, tensors=Tru
         
         negative_forms = [(a__, b__, c__, d__)
             for a_, b_, c_, d_ in positive_forms # for each positive (valid) analogies
-            for a__, b__, c__, d__ in generate_negative(a_, b_, c_, d_) # generate 3 negative (invalid) analogies
+            for a__, b__, c__, d__ in generate_negative(a_, b_, c_, d_, cp_undefined=cp_undefined) # generate 3 negative (invalid) analogies
         ]
         positive_forms = [
             (a_, b_, c_, d_) for a_, b_, c_, d_ in positive_forms
@@ -111,7 +111,7 @@ def n_pos_n_neg(a, b, c, d, filter_invalid=True, filter_valid=False, tensors=Tru
         positive_forms = [(a_, b_, c_, d_) for a_, b_, c_, d_ in enrich(a, b, c, d)]
         negative_forms = [(a__, b__, c__, d__)
             for a_, b_, c_, d_ in positive_forms # for each positive (valid) analogies
-            for a__, b__, c__, d__ in generate_negative(a_, b_, c_, d_) # generate 3 negative (invalid) analogies
+            for a__, b__, c__, d__ in generate_negative(a_, b_, c_, d_, cp_undefined=cp_undefined) # generate 3 negative (invalid) analogies
         ]
 
     # Sampling the right number
@@ -131,3 +131,37 @@ def n_pos_n_neg(a, b, c, d, filter_invalid=True, filter_valid=False, tensors=Tru
         negative_forms = negative_forms + random.choices(negative_forms, k=n - len(negative_forms))
 
     return positive_forms, negative_forms
+
+
+
+if __name__ == '__main__':
+    from argparse import ArgumentParser
+
+    # argument parsing
+    parser = ArgumentParser()
+    parser = pl.Trainer.add_argparse_args(parser)
+
+    model_parser = parser.add_argument_group("Model arguments")
+    model_parser.add_argument('--filters', '-f', type=int, default=128, help='The number of filters of the classification model.')
+
+    dataset_parser = parser.add_argument_group("Dataset arguments")
+    dataset_parser.add_argument('--dataset', '-d', type=str, default="2016", help='The language to train the model on.', choices=["2016", "2019"])
+    dataset_parser.add_argument('--language', '-l', type=str, default="arabic", help='The language to train the model on.', choices=SIG2019_HIGH+SIG2016_LANGUAGES)
+    dataset_parser.add_argument('--force-rebuild', help='Force the re-building of the dataset file.',  action='store_true')
+    dataset_parser.add_argument('--nb-analogies-train', '-n', type=int, default=50000, help='The maximum number of analogies (before augmentation) we train the model on.')
+    dataset_parser.add_argument('--nb-analogies-val', '-v', type=int, default=500, help='The maximum number of analogies (before augmentation) we validate the model on.')
+    dataset_parser.add_argument('--nb-analogies-test', '-t', type=int, default=50000, help='The maximum number of analogies (before augmentation) we test the model on.')
+    dataset_parser.add_argument('--batch-size', '-b', type=int, default=32, help='Batch size.')
+    dataset_parser.add_argument('--version', '-V', type=int, default=0, help='The experiment version, also corresponding to the random seed to use.')
+    dataset_parser.add_argument('--drop-fake-negative', help='Ignore negetive permutations that end up being a:a::b:b or a:b::a:b.', action='store_true')
+
+    args = parser.parse_args()
+
+    assert args.ckpt or not args.no_train
+
+    #try:
+    main(args)
+    #except RuntimeError or ProcessLookupError as e:
+    #    import traceback
+    #    logger.error(f"Caught {e}:")
+    #    traceback.print_tb(e.__traceback__)
