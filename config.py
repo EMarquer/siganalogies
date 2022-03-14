@@ -6,9 +6,6 @@ logger = logging.getLogger(__name__)
 
 THIS_DIR = dirname(__file__)
 ROOT = join(THIS_DIR, "..")
-DATASET_PATH = join(THIS_DIR, "precomputed")
-if not exists(DATASET_PATH):
-    mkdir(DATASET_PATH)
 
 # custom logging
 CUSTOM_CONFIG_FILE_NAME = "siganalogies.cfg.json"
@@ -33,7 +30,13 @@ def cfg(name):
     else:
         return None
 
+AUTO_DOWNLOAD = cfg("AUTO_DOWNLOAD") if cfg("AUTO_DOWNLOAD") is not None else False
+
 SERIALIZATION = cfg("SERIALIZATION") if cfg("SERIALIZATION") is not None else True
+
+DATASET_PATH = cfg("DATASET_PATH") if cfg("DATASET_PATH") is not None else join(THIS_DIR, "precomputed")
+if not exists(DATASET_PATH):
+    mkdir(DATASET_PATH)
 
 SIG2016_DATASET_PATH = cfg("SIG2016_DATASET_PATH") or join(ROOT, "sigmorphon2016/data/")
 SIG2016_SERIALIZATION_PATH = cfg("SIG2016_SERIALIZATION_PATH") or join(DATASET_PATH, "2016")

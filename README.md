@@ -17,6 +17,7 @@ The `siganalogies` package is design to manipulate morphological analogies built
   - [Data augmentation](#data-augmentation)
     - [Augmented forms (i.e. permutations)](#augmented-forms-ie-permutations)
     - [Augmented forms (i.e. permutations) with central permutation not accepted as a property of analogy](#augmented-forms-ie-permutations-with-central-permutation-not-accepted-as-a-property-of-analogy)
+      - [Augmented forms (i.e. permutations) with central permutation considered a non-property of analogy](#augmented-forms-ie-permutations-with-central-permutation-considered-a-non-property-of-analogy)
 - [Dataset description](#dataset-description)
 - [Publications using this dataset](#publications-using-this-dataset)
 - [[NOT RECOMMENDED] Minimal usage with `pickle` and dataset serialization files](#not-recommended-minimal-usage-with-pickle-and-dataset-serialization-files)
@@ -134,7 +135,7 @@ WILL BE DONE SOON
 To manipulate the analogies, you will first need to load a [dataset object](#dataset-object) using the [dataset factories](#factories).
 You will then be able to use the dataset as any other `torch.utils.data.Dataset`, each element being a quadruple.
 
-The dataset object contains analogies of the form $A:B::C:D$ and $A:B::A:B$, but not the corresponding [augmented forms (i.e. permutations)](#augmented-forms-ie-permutations). We recommend to apply [data augmentation](#data-augmentation) to add said [augmented forms](#augmented-forms-ie-permutations).
+The dataset object contains analogies of the form $`A:B::C:D`$ and $`A:B::A:B`$, but not the corresponding [augmented forms (i.e. permutations)](#augmented-forms-ie-permutations). We recommend to apply [data augmentation](#data-augmentation) to add said [augmented forms](#augmented-forms-ie-permutations).
 
 ### Config file
 Some configuration, in particular data paths, can be changed for every iteration.
@@ -151,22 +152,26 @@ The corresponding `siganalogies.cfg.json` file will be:
 }
 ```
 
-Suported configuration names are:
-- `SERIALIZATION`;
-- `SIG2016_DATASET_PATH`;
-- `SIG2016_SERIALIZATION_PATH`;
-- `SIG2019_DATASET_PATH`;
-- `SIG2019_SERIALIZATION_PATH`.
+Supported configuration names are:
+- `SERIALIZATION` (default `True`);
+- `AUTO_DOWNLOAD` (default `False`, not used yet);
+- `DATASET_PATH` (default `<sigmorphon folder>/precomputed/`);
+- `SIG2016_DATASET_PATH` (default `<project root>/sigmorphon2016/data/`);
+- `SIG2016_SERIALIZATION_PATH` (default `DATASET_PATH/2016/`);
+- `SIG2019_DATASET_PATH` (default `<project root>/sigmorphon2019/task1/`);
+- `SIG2019_SERIALIZATION_PATH` (default `DATASET_PATH/2019/`).
 
 Other configurations in `siganalogies.config` should not be modified.
+
+[COMING SOON] If `AUTO_DOWNLOAD` is set to `True`, when trying to access Sigmorphon 2019 or 2016, if the files are missing, they will be downloaded.
 
 ### Dataset object
 Dataset objects are subclasses of `torch.utils.data.Dataset` and should be created using [factories](#factories).
 
 A dataset object has the following attributes:
 - `language`: the dataset language;
-- `mode`: the subset of the language data, using the seperation done in Sigmorphon (for Sigmorphon 2016: `train`, `dev`, `test`; for Sigmorphon 2019 high ressource languages: `train-high`; for Sigmorphon 2019 low ressource languages: `train-low`, `dev`, `test`; test-covered is supported for neither dataset);
-- `word_encoder`: the word encoding strategy, used by the dataset object (`char` to encode using character IDs based on the characters of the training dataset, or `none` to return the text itself, which is usefull when using a custom encoding strategy); available Encoders are in the `siganalogies.encoders` subpackage;
+- `mode`: the subset of the language data, using the separation done in Sigmorphon (for Sigmorphon 2016: `train`, `dev`, `test`; for Sigmorphon 2019 high resource languages: `train-high`; for Sigmorphon 2019 low resource languages: `train-low`, `dev`, `test`; test-covered is supported for neither dataset);
+- `word_encoder`: the word encoding strategy, used by the dataset object (`char` to encode using character IDs based on the characters of the training dataset, or `none` to return the text itself, which is useful when using a custom encoding strategy); available Encoders are in the `siganalogies.encoders` sub-package;
 - several other statistic-oriented attributes are computed when building the dataset:
   - `features`: a list of all the features in the dataset;
   - `word_voc`: a list of all the words in the dataset;
@@ -249,38 +254,63 @@ There are two strategies available for word encoding.
 2. The second strategy is to do the encoding in a collate function of PyTorch or the equivalent in whatever language you are using. There, you can also use an existing or custom `encoders.Encoder` object, or define the collate function to fit your needs.
 
 ### Data augmentation
-To be completed.
+`utils.py` and `utils_no_cp.py` contain implementations of the data augmentation process, respectively with (default setting) or without central permutations among the predicates of analogy.
 
-Further explanations can be found in the article **To be completed**
+There are 3 key functions in each file:
+- `enrich(a, b, c, d)` generates equivalent/valid/positive permutations from a valid permutation;
+- `generate_negative(a, b, c, d)` generates invalid/negative permutations from a valid/positive one;
+- `n_pos_n_neg(a, b, c, d, n=-1)` combines the two, and computes the invalid (i.e., negative) analogies from each permutation generated by `enrich(a, b, c, d)`.
+  Using a positive value for `n` results in a sampling process such that we end up with `n` positive and `n` negative permutations. After all the valid and invalid permutations are computed, for each of the two sets of permutations:
+  - if there are exactly `n` permutations, we return them;
+  - if there are more than `n` permutations available, we sample `n` among them;
+  - if there is less than `n` available, we sample additional permutations among until we have a total of `n`.
 
 #### Augmented forms (i.e. permutations)
-From $A:B::C:D$ we can have the following equivalent permutations (or forms):
-- $A:B::C:D$ (the base form)
-- $A:C::B:D$
-- $B:A::D:C$
-- $B:D::A:C$
-- $C:D::A:B$
-- $C:A::D:B$
-- $D:C::B:A$
-- $D:B::C:A$
+From $`A:B::C:D`$ we can have the following equivalent permutations (or forms):
+- $`A:B::C:D`$ (the base form)
+- $`A:C::B:D`$
+- $`B:A::D:C`$
+- $`B:D::A:C`$
+- $`C:D::A:B`$
+- $`C:A::D:B`$
+- $`D:C::B:A`$
+- $`D:B::C:A`$
 
-We can also compute forms which should not be valid analogies, by permuting each analogical form $A:B::C:D$ above to obtain:
-- $A:A::C:D$
-- $B:A::C:D$
-- $C:B::A:D$
+We can also compute forms which should not be valid analogies, by permuting each analogical form $`A:B::C:D`$ above to obtain:
+- $`A:A::C:D`$
+- $`B:A::C:D`$
+- $`C:B::A:D`$
 
+The above process is implemented in `utils.py`.
 
 #### Augmented forms (i.e. permutations) with central permutation not accepted as a property of analogy
-To be completed.
+From $`A:B::C:D`$ we can have the following equivalent permutations (or forms):
+- $`A:B::C:D`$ (the base form)
+- $`B:A::D:C`$
+- $`C:D::A:B`$
+- $`D:C::B:A`$
+
+We can also compute forms which should not be valid analogies, by permuting each analogical form $`A:B::C:D`$ above to obtain:
+- $`A:A::C:D`$
+- $`B:A::C:D`$
+
+The above process is implemented in `utils_no_cp.py`.
+
+##### Augmented forms (i.e. permutations) with central permutation considered a non-property of analogy
+If we consider central permutation a property analogy must not have, we add the following forms (involving central permutation) which should not be valid analogies:
+- $`C:B::A:D`$
+- $`A:C::B:D`$
+
+The above process is implemented in `utils_no_cp.py`, but requires specifying the keyword argument `cp_undefined=False`. In other words, not only central permutation is not valid, but it is considered a non-property instead of merely being undefined.
 
 ## Dataset description
-See [`dataset_description.pdf`](dataset_description.pdf).
+See [`siganalogies_description.pdf`](siganalogies_description.pdf).
 
 ## Publications using this dataset
 To be completed.
 
 ## [NOT RECOMMENDED] Minimal usage with `pickle` and dataset serialization files
-It is possible to acess the pre-comuted data directly, using the following:
+It is possible to access the pre-computed data directly, using the following:
 ```python
 from pickle import load
 
