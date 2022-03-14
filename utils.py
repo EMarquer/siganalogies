@@ -4,16 +4,16 @@ import random
 def enrich(a, b, c, d):
     """Apply the example generation process from 'Solving Word Analogies: a Machine Learning Perspective'.
     
-    For a given positive (i.e. valid) analogy A:B::C:D, this function yields the folowing permutaions corresponding to
+    For a given positive (i.e. valid) analogy A:B::C:D, this function yields the folowing permutations corresponding to
     positive analogies:
         - A:B::C:D (base form);
-        - C:D::A:B (symetry);
+        - C:D::A:B (symmetry);
         - B:A::D:C (inside pair reversing);
-        - D:C::B:A (symetry + inside pair reversing);
+        - D:C::B:A (symmetry + inside pair reversing);
         - A:C::B:D (central permutation);
         - C:A::D:B (central permutation + inside pair reversing = extreme permutation);
-        - B:D::A:C (central permutation + symetry);
-        - D:B::C:A (extreme permutation + symetry).
+        - B:D::A:C (central permutation + symmetry);
+        - D:B::C:A (extreme permutation + symmetry).
     """
     yield a, b, c, d
     yield c, d, a, b
@@ -27,7 +27,7 @@ def enrich(a, b, c, d):
 def generate_negative(a, b, c, d):
     """Apply the negative example generation process from 'Solving Word Analogies: a Machine Learning Perspective'.
 
-    For a given positive (i.e. valid) analogy A:B::C:D, this function yields the folowing permutaions corresponding to
+    For a given positive (i.e. valid) analogy A:B::C:D, this function yields the folowing permutations corresponding to
     negative (i.e. invalid) analogies:
         - B:A::C:D (one pair internally permuted, but not the other);
         - C:B::A:D (analogy between the "diagonals" of the "parallelogram" ABCD);

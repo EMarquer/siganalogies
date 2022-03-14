@@ -155,10 +155,10 @@ The corresponding `siganalogies.cfg.json` file will be:
 Supported configuration names are:
 - `SERIALIZATION` (default `True`);
 - `AUTO_DOWNLOAD` (default `False`, not used yet);
-- `DATASET_PATH` (default `<sigmorphon folder>/precomputed/`);
-- `SIG2016_DATASET_PATH` (default `<project root>/sigmorphon2016/data/`);
+- `DATASET_PATH` (default `<siganalogies root>/precomputed/`);
+- `SIG2016_DATASET_PATH` (default `<siganalogies root>/sigmorphon2016/data/`);
 - `SIG2016_SERIALIZATION_PATH` (default `DATASET_PATH/2016/`);
-- `SIG2019_DATASET_PATH` (default `<project root>/sigmorphon2019/task1/`);
+- `SIG2019_DATASET_PATH` (default `<siganalogies root>/sigmorphon2019/task1/`);
 - `SIG2019_SERIALIZATION_PATH` (default `DATASET_PATH/2019/`).
 
 Other configurations in `siganalogies.config` should not be modified.
@@ -206,13 +206,13 @@ dataset = dataset_factory(dataset="2016", **kwargs)
 #### Dataset-specific factories
 Specify `dataset_pkl_folder` if you do not use the recommended structure to store the precomputed dataset files.
 Defaults are: 
-- `siganalogies.config.SIG2016_SERIALIZATION_PATH="./precomputed/2016"`
-- `siganalogies.config.SIG2019_SERIALIZATION_PATH="./precomputed/2019"`
+- `siganalogies.config.SIG2016_SERIALIZATION_PATH="siganalogies/precomputed/2016"`
+- `siganalogies.config.SIG2019_SERIALIZATION_PATH="siganalogies/precomputed/2019"`
 
 Specify `dataset_folder` if you do not use the recommended structure to store the datasets. 
 Defaults are:
-- `siganalogies.config.SIG2016_DATASET_PATH="../sigmorphon2016/data"`
-- `siganalogies.config.SIG2019_DATASET_PATH="../sigmorphon2019/task1"`
+- `siganalogies.config.SIG2016_DATASET_PATH="siganalogies/sigmorphon2016/data"`
+- `siganalogies.config.SIG2019_DATASET_PATH="siganalogies/sigmorphon2019/task1"`
 
 For all the datasets, `word_encoding` can be either `"char"` for character-based encoding, or either `None` or `"none"`, if no encoding is applied and the raw text data is returned.
 

@@ -38,7 +38,7 @@ DATASET_PATH = cfg("DATASET_PATH") if cfg("DATASET_PATH") is not None else join(
 if not exists(DATASET_PATH):
     mkdir(DATASET_PATH)
 
-SIG2016_DATASET_PATH = cfg("SIG2016_DATASET_PATH") or join(ROOT, "sigmorphon2016/data/")
+SIG2016_DATASET_PATH = cfg("SIG2016_DATASET_PATH") or join(THIS_DIR, "sigmorphon2016/data/")
 SIG2016_SERIALIZATION_PATH = cfg("SIG2016_SERIALIZATION_PATH") or join(DATASET_PATH, "2016")
 if not exists(SIG2016_SERIALIZATION_PATH):
     mkdir(SIG2016_SERIALIZATION_PATH)
@@ -46,7 +46,7 @@ SIG2016_LANGUAGES = ["arabic", "finnish", "georgian", "german", "hungarian", "ja
 SIG2016_LANGUAGES_SHORT = ["ar", "fi", "ka", "de", "hu", "mt", "nv", "ru", "es", "tr"] # for BPEmb subword embeddings
 SIG2016_MODES = ["train", "dev", "test"] # "test-covered" is not used because it is not exactly the same format as the others
 
-SIG2019_DATASET_PATH = cfg("SIG2019_DATASET_PATH") or join(ROOT, "sigmorphon2019/task1")
+SIG2019_DATASET_PATH = cfg("SIG2019_DATASET_PATH") or join(THIS_DIR, "sigmorphon2019/task1")
 SIG2019_SERIALIZATION_PATH = cfg("SIG2019_SERIALIZATION_PATH") or join(DATASET_PATH, "2019")
 if not exists(SIG2019_SERIALIZATION_PATH):
     mkdir(SIG2019_SERIALIZATION_PATH)
