@@ -2,6 +2,7 @@ from os.path import exists, dirname, join
 from os import mkdir
 import json
 import logging
+
 logger = logging.getLogger(__name__)
 
 THIS_DIR = dirname(__file__)
@@ -30,9 +31,27 @@ def cfg(name):
     else:
         return None
 
-AUTO_DOWNLOAD = cfg("AUTO_DOWNLOAD") if cfg("AUTO_DOWNLOAD") is not None else False
+AUTO_DOWNLOAD_SIG = cfg("AUTO_DOWNLOAD_SIG") if cfg("AUTO_DOWNLOAD_SIG") is not None else False
 
 SERIALIZATION = cfg("SERIALIZATION") if cfg("SERIALIZATION") is not None else True
+DOWNLOAD = cfg("DOWNLOAD") if cfg("DOWNLOAD") is not None else True
+DOREL_URL = "https://dorel.univ-lorraine.fr/api/access/datafile/:persistentId?persistentId=doi:10.12763/MLCFIE"
+DOREL_PREFIX = "doi:10.12763/MLCFIE/"
+DOREL_JSON_DESCRIPTION_URL = "https://dorel.univ-lorraine.fr/api/datasets/export?exporter=dataverse_json&persistentId=doi%3A10.12763/MLCFIE"
+def dorel_json_description() -> dict:
+    """Return a description of the dataset as JSON from DOREL."""
+    import urllib.request as r
+    with r.urlopen(DOREL_JSON_DESCRIPTION_URL) as url:
+        data = json.load(url)
+    return data
+def dorel_pkl_url(dataset="2016", language="german", mode="train", word_encoder="none") -> str:
+    """Return the file URL of the pickle file as JSON from DOREL."""
+    from .encoders import encoder_as_string
+    file_name = f"{language}-{mode}-{encoder_as_string(word_encoder)}.pkl"
+    for file in dorel_json_description()["datasetVersion"]["files"]:
+        if file.get("directoryLabel", "") == f"precomputed/{dataset}" and file["dataFile"]["filename"] == file_name:
+            file_id = file["dataFile"]["persistentId"].split("/")[-1]
+            return f"{DOREL_URL}/{file_id}"
 
 DATASET_PATH = cfg("DATASET_PATH") if cfg("DATASET_PATH") is not None else join(THIS_DIR, "precomputed")
 if not exists(DATASET_PATH):

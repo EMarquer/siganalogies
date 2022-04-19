@@ -6,7 +6,7 @@ The `siganalogies` package is design to manipulate morphological analogies built
 - [References](#references)
 - [Requirements](#requirements)
 - [Setup](#setup)
-  - [[OPTIONAL] Get pre-computed dataset files for analysis or faster loading](#optional-get-pre-computed-dataset-files-for-analysis-or-faster-loading)
+  - [[OPTIONAL] Get pre-computed dataset files for analysis or faster first loading](#optional-get-pre-computed-dataset-files-for-analysis-or-faster-first-loading)
 - [Basic usage](#basic-usage)
   - [Config file](#config-file)
   - [Dataset object](#dataset-object)
@@ -127,9 +127,12 @@ mv siganalogies/japanese-task1-train sigmorphon2016/japanese-task1-train
 
 If you are in a repository, we recommend that you use `git submodule add` instead of `git clone`.
 
-### [OPTIONAL] Get pre-computed dataset files for analysis or faster loading
+### [OPTIONAL] Get pre-computed dataset files for analysis or faster first loading
+When using the dataser factory described in [Factories](#factories), if you pass `download=True` (the default) the corresponding file will be downloaded if it does not exist and `force_rebuild` is `False` (the default).
 
-WILL BE DONE SOON
+If you also specify `serialization=False`, no data will be saved locally. This could be useful for applications on devices with limited storage space.
+
+**Be careful. Some pre-computed dataset files do not exist on the remote.**
 
 ## Basic usage
 To manipulate the analogies, you will first need to load a [dataset object](#dataset-object) using the [dataset factories](#factories).
@@ -154,7 +157,8 @@ The corresponding `siganalogies.cfg.json` file will be:
 
 Supported configuration names are:
 - `SERIALIZATION` (default `True`);
-- `AUTO_DOWNLOAD` (default `False`, not used yet);
+- `DOWNLOAD` (default `True`);
+- `AUTO_DOWNLOAD_SIG` (default `False`, not used yet);
 - `DATASET_PATH` (default `<siganalogies root>/precomputed/`);
 - `SIG2016_DATASET_PATH` (default `<siganalogies root>/sigmorphon2016/data/`);
 - `SIG2016_SERIALIZATION_PATH` (default `DATASET_PATH/2016/`);
@@ -163,7 +167,7 @@ Supported configuration names are:
 
 Other configurations in `siganalogies.config` should not be modified.
 
-[COMING SOON] If `AUTO_DOWNLOAD` is set to `True`, when trying to access Sigmorphon 2019 or 2016, if the files are missing, they will be downloaded.
+[COMING SOON] If `AUTO_DOWNLOAD_SIG` is set to `True`, when trying to access Sigmorphon 2019 or 2016, if the files are missing, they will be downloaded.
 
 ### Dataset object
 Dataset objects are subclasses of `torch.utils.data.Dataset` and should be created using [factories](#factories).
@@ -188,14 +192,21 @@ Manually creating a dataset using its `__init__` call is not recommended, use th
 
 If you are unsure the data saved is correct, you can specify `force_rebuild=True` to the factory function.
 
-If you do not want to use serialized dataset (hence recompute the analogies each time) you can specify `serialize=False` to the factory function.
+You can download the pre-computed dataset file if it does not already exits using `download=True`, to avoid the time required for the first initialization.
+See [[OPTIONAL] Get pre-computed dataset files for analysis or faster first loading](#optional-get-pre-computed-dataset-files-for-analysis-or-faster-first-loading) for details.
+
+To load the metadata without loading the data, you can specify `load_data=False`.
+Combined with `serialization=False` and `download=True`, it alows to analyse some properties of the dataset without having the Sigmorphon files.
+
+If you do not want to use serialized dataset (hence recompute the analogies each time) you can specify `serialization=False` to the factory function.
 To disable precomputed dataset files once, specify `serialization=False` in the factory. To disable dataset files globaly, change `SERIALIZATION=True` to `SERIALIZATION=False` in `siganalogies/config.py` or in the config file.
 Unless you also specify `force_rebuild=True`, the existing serialized datasets will still be used.
 
+
 #### Generic factory
 The generic factory is used to unify calls to dataset-specific factories.
-Typical usage is when Sigmorphon 2016 and Sigmorphon 2019 will be used interchangabely.
-To use the generic factory, refer to the datataset specific explanation of the key-word arguments.
+Typical usage is when Sigmorphon 2016 and Sigmorphon 2019 will be used interchangeably.
+To use the generic factory, refer to the dataset specific explanation of the key-word arguments.
 
 ```python
 from siganalogies import dataset_factory
