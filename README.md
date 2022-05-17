@@ -206,7 +206,7 @@ Unless you also specify `force_rebuild=True`, the existing serialized datasets w
 #### Generic factory
 The generic factory is used to unify calls to dataset-specific factories.
 Typical usage is when Sigmorphon 2016 and Sigmorphon 2019 will be used interchangeably.
-To use the generic factory, refer to the dataset specific explanation of the key-word arguments.
+To use the generic factory, refer to the **dataset** specific explanation of the key-word arguments.
 
 ```python
 from siganalogies import dataset_factory

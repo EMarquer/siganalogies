@@ -1,5 +1,6 @@
 from .config import DOWNLOAD, SERIALIZATION, SIG2016_LANGUAGES, SIG2016_DATASET_PATH, SIG2016_MODES, SIG2016_SERIALIZATION_PATH, dorel_pkl_url
-from os.path import exists, join
+from os.path import exists, join, dirname
+from os import makedirs
 from datetime import datetime
 from .abstract_analogy_dataset import AbstractAnalogyDataset, StateDict, save_state_dict, load_state_dict
 import logging
@@ -109,6 +110,7 @@ def dataset_factory(language="german", mode="train", word_encoder="none", datase
             url = dorel_pkl_url(dataset=2016, language=language, mode=mode, word_encoder=word_encoder)
             
             if serialization: # download to file
+                makedirs(dirname(filepath), exist_ok=True)
                 r.urlretrieve(url, filepath)
                 module_logger.info(f"Dataset {file_name} downloaded from remote file to {filepath}.")
             else: # use on the fly, return the file directly

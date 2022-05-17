@@ -1,4 +1,5 @@
-from os.path import exists, join
+from os.path import exists, join, dirname
+from os import makedirs
 from torch.utils.data import Dataset
 from .config import DOWNLOAD, SERIALIZATION, SIG2019_HIGH_LOW_PAIRS, SIG2019_LANGUAGES, SIG2019_DATASET_PATH, SIG2019_SERIALIZATION_PATH, SIG2019_HIGH, SIG2019_LOW, SIG2019_HIGH_MODES, SIG2019_LOW_MODES, dorel_pkl_url
 from datetime import datetime
@@ -202,6 +203,7 @@ def dataset_factory(language="german", mode="train-high", word_encoder: t.Union[
             url = dorel_pkl_url(dataset=2019, language=language, mode=mode, word_encoder=word_encoder)
             
             if serialization: # download to file
+                makedirs(dirname(filepath), exist_ok=True)
                 r.urlretrieve(url, filepath)
                 module_logger.info(f"Dataset {file_name} downloaded from remote file to {filepath}.")
             else: # use on the fly, return the file directly
