@@ -216,6 +216,8 @@ def dataset_factory(language="german", mode="train-high", word_encoder: t.Union[
             module_logger.error(f"HTTPError while attempting to get {file_name} from {url}. Possibly, the file does not exist remotely.")
         except er.URLError:
             module_logger.error(f"URLError while attempting to get {file_name} from {url}.")
+        except Exception as e:
+            module_logger.error(f"Unknown {e} exception while attempting to get {file_name} from {url}.")
 
     # pickle still does not exist (error above or download is False), create it
     if force_rebuild or not exists(filepath):
