@@ -53,9 +53,13 @@ def dorel_pkl_url(dataset="2016", language="german", mode="train", word_encoder=
             file_id = file["dataFile"]["persistentId"].split("/")[-1]
             return f"{DOREL_URL}/{file_id}"
 
-DATASET_PATH = cfg("DATASET_PATH") if cfg("DATASET_PATH") is not None else join(THIS_DIR, "precomputed")
+DATASET_PATH = cfg("DATASET_PATH") or join(THIS_DIR, "precomputed")
 if not exists(DATASET_PATH):
     mkdir(DATASET_PATH)
+
+CUSTOM_SERIALIZATION_PATH = cfg("CUSTOM_SERIALIZATION_PATH") or join(DATASET_PATH, "custom")
+if not exists(CUSTOM_SERIALIZATION_PATH):
+    mkdir(CUSTOM_SERIALIZATION_PATH)
 
 SIG2016_DATASET_PATH = cfg("SIG2016_DATASET_PATH") or join(THIS_DIR, "sigmorphon2016/data/")
 SIG2016_SERIALIZATION_PATH = cfg("SIG2016_SERIALIZATION_PATH") or join(DATASET_PATH, "2016")

@@ -2,7 +2,7 @@ from .config import DOWNLOAD, SERIALIZATION, SIG2016_LANGUAGES, SIG2016_DATASET_
 from os.path import exists, join, dirname
 from os import makedirs
 from datetime import datetime
-from .abstract_analogy_dataset import AbstractAnalogyDataset, StateDict, save_state_dict, load_state_dict
+from .abstract_analogy_dataset import AbstractAnalogyDataset, EncodedWord, StateDict, save_state_dict, load_state_dict
 import logging
 import typing as t
 from .encoders import Encoder, encoder_as_string
@@ -10,7 +10,7 @@ from .encoders import Encoder, encoder_as_string
 # create logger
 module_logger = logging.getLogger(__name__)
 
-def _load_data(language="german", mode="train", task=2, dataset_folder=SIG2016_DATASET_PATH):
+def _load_data(language="german", mode="train", task=1, dataset_folder=SIG2016_DATASET_PATH):
     '''Load the data from the sigmorphon files in the form of a list of triples (lemma, target_features, target_word).'''
     assert language in SIG2016_LANGUAGES, f"Language '{language}' is unkown, allowed languages are {SIG2016_LANGUAGES}"
     assert mode in SIG2016_MODES, f"Mode '{mode}' is unkown, allowed modes are {SIG2016_MODES}"
@@ -33,7 +33,7 @@ class Sig2016Dataset(AbstractAnalogyDataset):
     def state_dict(self) -> StateDict:
         "Return a data dictionary, loadable for future use of the dataset."
         state_dict = {
-            "timestamp": datetime.now(),
+            "timestamp": datetime.utcnow(),
             "language": self.language,
             "mode": self.mode,
             "word_encoder": self.word_encoder.state_dict(),
@@ -59,10 +59,10 @@ class Sig2016Dataset(AbstractAnalogyDataset):
             self.prepare_encoder()
         elif state_dict is not None:
             self.analogies = state_dict["analogies"]
-            self.word_voc = state_dict["word_voc"]
-            self.features = state_dict["features"]
-            self.features_with_analogies = state_dict["features_with_analogies"]
-            self.words_with_analogies = state_dict["words_with_analogies"]
+            self.word_voc = set(state_dict["word_voc"])
+            self.features = set(state_dict["features"])
+            self.features_with_analogies = set(state_dict["features_with_analogies"])
+            self.words_with_analogies = set(state_dict["words_with_analogies"])
 
     def set_analogy_classes(self):
         self.analogies = []
@@ -86,7 +86,7 @@ class Sig2016Dataset(AbstractAnalogyDataset):
                     assert i+1+j<len(self.raw_data), f"{i+1+j=}<{len(self.raw_data)=}"
                     assert i<len(self.raw_data), f"{i=}<{len(self.raw_data)=}"
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> t.Tuple[EncodedWord, EncodedWord, EncodedWord, EncodedWord]:
         ab_index, cd_index = self.analogies[index]
         assert cd_index<len(self.raw_data), f"{cd_index=}<{len(self.raw_data)=}"
         assert ab_index<len(self.raw_data), f"{cd_index=}<{len(self.raw_data)=}"
