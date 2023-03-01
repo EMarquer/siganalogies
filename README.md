@@ -6,7 +6,7 @@ The `siganalogies` package is design to manipulate morphological analogies built
 - [References](#references)
 - [Requirements](#requirements)
 - [Setup](#setup)
-  - [[OPTIONAL] Get pre-computed dataset files for analysis or faster first loading](#optional-get-pre-computed-dataset-files-for-analysis-or-faster-first-loading)
+  - [\[OPTIONAL\] Get pre-computed dataset files for analysis or faster first loading](#optional-get-pre-computed-dataset-files-for-analysis-or-faster-first-loading)
 - [Basic usage](#basic-usage)
   - [Config file](#config-file)
   - [Dataset object](#dataset-object)
@@ -20,7 +20,7 @@ The `siganalogies` package is design to manipulate morphological analogies built
       - [Augmented forms (i.e. permutations) with central permutation considered a non-property of analogy](#augmented-forms-ie-permutations-with-central-permutation-considered-a-non-property-of-analogy)
 - [Dataset description](#dataset-description)
 - [Publications using this dataset](#publications-using-this-dataset)
-- [[NOT RECOMMENDED] Minimal usage with `pickle` and dataset serialization files](#not-recommended-minimal-usage-with-pickle-and-dataset-serialization-files)
+- [\[NOT RECOMMENDED\] Minimal usage with `pickle` and dataset serialization files](#not-recommended-minimal-usage-with-pickle-and-dataset-serialization-files)
 
 ## Changelog
 Comming soon:
@@ -122,7 +122,7 @@ This can be done using the following commands, to be run from your project direc
 git clone git@github.com:EMarquer/siganalogies
 git clone git@github.com:ryancotterell/sigmorphon2016 sigmorphon2016
 git clone git@github.com:sigmorphon/2019.git sigmorphon2019
-mv siganalogies/japanese-task1-train sigmorphon2016/japanese-task1-train
+cp siganalogies/japanese-task1-train sigmorphon2016/data/japanese-task1-train
 ```
 
 If you are in a repository, we recommend that you use `git submodule add` instead of `git clone`.
