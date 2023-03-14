@@ -106,3 +106,4 @@ SIG2019_HIGH_MODES = ["train-high"]
 SIG2019_LOW_MODES = ["train-low", "test", "dev"] # "test-covered" is not used because it is not exactly the same format as the others
 
 #print(set(SIG2019_HIGH).intersection(set(SIG2019_LOW)))
+JBATS_USE_KANJI = True

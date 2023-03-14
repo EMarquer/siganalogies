@@ -1,4 +1,4 @@
-from .config import DOWNLOAD, SERIALIZATION, SIG2016_LANGUAGES, SIG2016_DATASET_PATH, SIG2016_MODES, SIG2016_SERIALIZATION_PATH, dorel_pkl_url
+from .config import DOWNLOAD, SERIALIZATION, SIG2016_LANGUAGES, SIG2016_DATASET_PATH, SIG2016_MODES, SIG2016_SERIALIZATION_PATH, JBATS_USE_KANJI, dorel_pkl_url
 from os.path import exists, join, dirname
 from os import makedirs
 from datetime import datetime
@@ -18,7 +18,18 @@ def _load_data(language="german", mode="train", task=1, dataset_folder=SIG2016_D
         assert mode == 'train', f"Mode '{mode}' is unkown for Japanese, the only allowed mode is 'train'"
     filename = f"{language}-task{task}-{mode}"
     with open(join(dataset_folder, filename), "r", encoding="utf-8") as f:
-        return [line.strip().split('\t') for line in f]
+        if language == 'japanese':
+            lines = []
+            for line in f:
+                a, f, b = line.strip().split('\t')
+                if "/" in b: # kanji /  hiragana_katakana 
+                    kanji, hiragana_katakana = b.split("/")
+                    lines.append([a, f, kanji if JBATS_USE_KANJI else hiragana_katakana])  
+                else:
+                    lines.append([a, f, b]) 
+            return [line.strip().split('\t') for line in f]
+        else:
+            return [line.strip().split('\t') for line in f]
 
 class Sig2016Dataset(AbstractAnalogyDataset):
     @staticmethod
