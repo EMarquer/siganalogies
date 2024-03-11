@@ -1,4 +1,4 @@
-from .config import DOWNLOAD, SERIALIZATION, SIG2016_LANGUAGES, SIG2016_DATASET_PATH, SIG2016_MODES, SIG2016_SERIALIZATION_PATH, JBATS_USE_KANJI, dorel_pkl_url
+from .config import DOWNLOAD, SERIALIZATION, SIG2016_LANGUAGES, SIG2016_DATASET_PATH, SIG2016_MODES, SIG2016_SERIALIZATION_PATH, JBATS_USE_KANJI, JBATS_USE_ALL_KANA, dorel_pkl_url
 from os.path import exists, join, dirname
 from os import makedirs
 from datetime import datetime
@@ -23,11 +23,18 @@ def _load_data(language="german", mode="train", task=1, dataset_folder=SIG2016_D
             for line in f:
                 a, f, b = line.strip().split('\t')
                 if "/" in b: # kanji /  hiragana_katakana 
-                    kanji, hiragana_katakana = b.split("/")
-                    lines.append([a, f, kanji if JBATS_USE_KANJI else hiragana_katakana])  
+                    b = b.split("/")
+                    kanji, hiragana_katakana = b[0], b[1:]
+                    if JBATS_USE_KANJI:
+                        lines.append([a, f, kanji])
+                    elif JBATS_USE_ALL_KANA:
+                        for hiragana_katakana_ in hiragana_katakana:
+                            lines.append([a, f, hiragana_katakana_])
+                    else:
+                        lines.append([a, f, hiragana_katakana[0]])
                 else:
                     lines.append([a, f, b]) 
-            return [line.strip().split('\t') for line in f]
+            return lines
         else:
             return [line.strip().split('\t') for line in f]
 
